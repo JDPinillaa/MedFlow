@@ -1,0 +1,161 @@
+openapi: 3.0.3
+info:
+  title: API MedFlow
+  description: Contrato integral para el sistema de citas, historias clínicas, facturación y análisis de operaciones.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Servidor Local de Desarrollo
+
+paths:
+  # --- AUTENTICACIÓN ---
+  /api/v1/auth/registrarse:
+    post:
+      tags: [Autenticación]
+      summary: Registro de nuevos usuarios (Pacientes/Médicos)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Usuario'
+      responses:
+        '201':
+          description: Usuario creado exitosamente.
+
+  /api/v1/auth/iniciar-sesion:
+    post:
+      tags: [Autenticación]
+      summary: Inicio de sesión
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: {type: string}
+                password: {type: string}
+      responses:
+        '200':
+          description: Login exitoso. Devuelve Token JWT.
+
+  # --- PROCEDIMIENTOS (CATÁLOGO) ---
+  /api/v1/procedimientos:
+    get:
+      tags: [Procedimientos]
+      summary: Lista de procedimientos disponibles
+      responses:
+        '200':
+          description: Lista de nombres, precios y tiempos.
+    post:
+      tags: [Procedimientos]
+      summary: Añadir nuevo procedimiento (Solo Admin)
+      responses:
+        '201':
+          description: Procedimiento creado.
+
+    put:
+      tags: [Procedimientos]
+      summary: Actualizar precio o tiempo de un procedimiento(Solo Admin)
+      responses:
+        '200':
+          description: Datos actualizados.
+
+
+  # --- CITAS Y AGENDA ---
+  /api/v1/citas:
+    post:
+      tags: [Citas]
+      summary: Agendar una cita (Paciente)
+      responses:
+        '201':
+          description: Cita programada.
+    get:
+      tags: [Citas]
+      summary: Ver agenda diaria (Médico)
+      parameters:
+        - name: fecha
+          in: query
+          schema: {type: string, format: date}
+      responses:
+        '200':
+          description: Lista de citas del día.
+
+  /api/v1/citas/{id}/cancelar:
+    patch:
+      tags: [Citas]
+      summary: Cancelar una cita (Médico/Paciente)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        '200':
+          description: Cita marcada como CANCELADA.
+
+  # --- HISTORIAS CLÍNICAS ---
+  /api/v1/historias-clinicas:
+    post:
+      tags: [Historia Clínica]
+      summary: Agregar nuevo registro clínico (Solo Médico)
+      responses:
+        '201':
+          description: Registro guardado.
+
+  # --- FACTURACIÓN ---
+  /api/v1/facturas/generar:
+    post:
+      tags: [Facturación]
+      summary: Generar factura de una cita completada
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                citaId: {type: integer}
+      responses:
+        '201':
+          description: Factura generada con el total del procedimiento.
+
+  # --- OPERACIONES FINANCIERAS ---
+  /api/v1/operaciones/ganancias:
+    get:
+      tags: [Operaciones]
+      summary: Consultar ganancias del consultorio
+      description: Calcula el total de ingresos por procedimientos en un periodo determinado.
+      parameters:
+        - name: periodo
+          in: query
+          required: true
+          description: El intervalo de tiempo a consultar (dia, mes, ano).
+          schema:
+            type: string
+            enum: [dia, mes, ano]
+        - name: fecha
+          in: query
+          required: true
+          description: Fecha base para el cálculo (Ej. 2026-04-12).
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Resumen financiero calculado exitosamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  periodoAnalizado: {type: string, example: "mes"}
+                  totalGanancias: {type: number, format: double, example: 4500000.00}
+                  citasAtendidas: {type: integer, example: 42}
+
+components:
+  schemas:
+    Usuario:
+      type: object
+      properties:
+        email: {type: string}
+        password: {type: string}
+        rol: {type: string, enum: [PACIENTE, MEDICO, ADMIN]}
