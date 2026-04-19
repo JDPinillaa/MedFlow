@@ -1,161 +1,749 @@
 openapi: 3.0.3
 info:
-  title: API MedFlow
-  description: Contrato integral para el sistema de citas, historias clínicas, facturación y análisis de operaciones.
-  version: 1.0.0
+  title: MedFlow Backend API
+  version: 1.1.0
+  description: |
+    Contrato OpenAPI del estado actual del backend de MedFlow.
+
+    Este archivo documenta los modulos implementados hasta ahora y sirve como referencia comun
+    para desarrollo backend, frontend, pruebas manuales y futura automatizacion.
+
+    Contexto util para el equipo:
+    - El MVP actual esta orientado a gestion administrativa del consultorio.
+    - Ya existen CRUDs funcionales para pacientes, doctores y procedimientos.
+    - Ya existe gestion de citas con validaciones basicas de agenda.
+    - Autenticacion, historia clinica, facturacion y calendario siguen pendientes de implementacion.
+
+    Reglas de negocio ya activas:
+    - Pacientes no pueden repetir documento ni email.
+    - Doctores no pueden repetir registro medico ni email.
+    - Procedimientos no pueden repetir nombre.
+    - Una cita debe programarse en una fecha futura.
+    - Un doctor no puede tener dos citas a la misma fecha y hora.
+    - Un paciente no puede tener dos citas a la misma fecha y hora.
+    - Los estados de cita validos actualmente son PROGRAMADA, COMPLETADA y CANCELADA.
 servers:
   - url: http://localhost:8080
-    description: Servidor Local de Desarrollo
+    description: Servidor local de desarrollo
+
+tags:
+  - name: Pacientes
+    description: Gestion del directorio de pacientes del consultorio.
+  - name: Doctores
+    description: Catalogo de doctores disponibles para agenda y atencion.
+  - name: Procedimientos
+    description: Catalogo base de servicios o procedimientos medicos.
+  - name: Citas
+    description: Agendamiento y seguimiento operativo de citas.
 
 paths:
-  # --- AUTENTICACIÓN ---
-  /api/v1/auth/registrarse:
-    post:
-      tags: [Autenticación]
-      summary: Registro de nuevos usuarios (Pacientes/Médicos)
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Usuario'
-      responses:
-        '201':
-          description: Usuario creado exitosamente.
-
-  /api/v1/auth/iniciar-sesion:
-    post:
-      tags: [Autenticación]
-      summary: Inicio de sesión
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email: {type: string}
-                password: {type: string}
-      responses:
-        '200':
-          description: Login exitoso. Devuelve Token JWT.
-
-  # --- PROCEDIMIENTOS (CATÁLOGO) ---
-  /api/v1/procedimientos:
+  /api/pacientes:
     get:
-      tags: [Procedimientos]
-      summary: Lista de procedimientos disponibles
-      responses:
-        '200':
-          description: Lista de nombres, precios y tiempos.
-    post:
-      tags: [Procedimientos]
-      summary: Añadir nuevo procedimiento (Solo Admin)
-      responses:
-        '201':
-          description: Procedimiento creado.
-
-    put:
-      tags: [Procedimientos]
-      summary: Actualizar precio o tiempo de un procedimiento(Solo Admin)
-      responses:
-        '200':
-          description: Datos actualizados.
-
-
-  # --- CITAS Y AGENDA ---
-  /api/v1/citas:
-    post:
-      tags: [Citas]
-      summary: Agendar una cita (Paciente)
-      responses:
-        '201':
-          description: Cita programada.
-    get:
-      tags: [Citas]
-      summary: Ver agenda diaria (Médico)
+      tags: [Pacientes]
+      summary: Listar pacientes
+      description: |
+        Devuelve todos los pacientes ordenados por nombre.
+        Si se envia `busqueda`, filtra por nombre, documento o email.
       parameters:
-        - name: fecha
+        - name: busqueda
           in: query
-          schema: {type: string, format: date}
-      responses:
-        '200':
-          description: Lista de citas del día.
-
-  /api/v1/citas/{id}/cancelar:
-    patch:
-      tags: [Citas]
-      summary: Cancelar una cita (Médico/Paciente)
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: {type: integer}
-      responses:
-        '200':
-          description: Cita marcada como CANCELADA.
-
-  # --- HISTORIAS CLÍNICAS ---
-  /api/v1/historias-clinicas:
-    post:
-      tags: [Historia Clínica]
-      summary: Agregar nuevo registro clínico (Solo Médico)
-      responses:
-        '201':
-          description: Registro guardado.
-
-  # --- FACTURACIÓN ---
-  /api/v1/facturas/generar:
-    post:
-      tags: [Facturación]
-      summary: Generar factura de una cita completada
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                citaId: {type: integer}
-      responses:
-        '201':
-          description: Factura generada con el total del procedimiento.
-
-  # --- OPERACIONES FINANCIERAS ---
-  /api/v1/operaciones/ganancias:
-    get:
-      tags: [Operaciones]
-      summary: Consultar ganancias del consultorio
-      description: Calcula el total de ingresos por procedimientos en un periodo determinado.
-      parameters:
-        - name: periodo
-          in: query
-          required: true
-          description: El intervalo de tiempo a consultar (dia, mes, ano).
+          required: false
+          description: Texto libre para buscar por nombre, documento o email.
           schema:
             type: string
-            enum: [dia, mes, ano]
+      responses:
+        '200':
+          description: Lista de pacientes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PacienteResponse'
+    post:
+      tags: [Pacientes]
+      summary: Crear paciente
+      description: Registra un nuevo paciente en el sistema.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PacienteRequest'
+            examples:
+              ejemplo:
+                value:
+                  nombreCompleto: Ana Perez
+                  documento: "123456789"
+                  telefono: "3001234567"
+                  email: ana.perez@correo.com
+                  direccion: Calle 10 # 20-30
+      responses:
+        '201':
+          description: Paciente creado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PacienteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/pacientes/{id}:
+    get:
+      tags: [Pacientes]
+      summary: Obtener paciente por id
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Paciente encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PacienteResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Pacientes]
+      summary: Actualizar paciente
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PacienteRequest'
+      responses:
+        '200':
+          description: Paciente actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PacienteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Pacientes]
+      summary: Eliminar paciente
+      description: Elimina el paciente por id.
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Paciente eliminado correctamente.
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/doctores:
+    get:
+      tags: [Doctores]
+      summary: Listar doctores
+      description: |
+        Devuelve todos los doctores ordenados por nombre.
+        Si se envia `busqueda`, filtra por nombre, especialidad o registro medico.
+      parameters:
+        - name: busqueda
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de doctores.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DoctorResponse'
+    post:
+      tags: [Doctores]
+      summary: Crear doctor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctorRequest'
+            examples:
+              ejemplo:
+                value:
+                  nombreCompleto: Dra. Laura Gomez
+                  especialidad: Medicina General
+                  registroMedico: RM-001
+                  email: laura.gomez@medflow.com
+      responses:
+        '201':
+          description: Doctor creado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctorResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/doctores/{id}:
+    get:
+      tags: [Doctores]
+      summary: Obtener doctor por id
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Doctor encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Doctores]
+      summary: Actualizar doctor
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctorRequest'
+      responses:
+        '200':
+          description: Doctor actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctorResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Doctores]
+      summary: Eliminar doctor
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Doctor eliminado correctamente.
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/procedimientos:
+    get:
+      tags: [Procedimientos]
+      summary: Listar procedimientos
+      description: |
+        Devuelve el catalogo de procedimientos ordenado por nombre.
+        Si se envia `busqueda`, filtra por nombre.
+      parameters:
+        - name: busqueda
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de procedimientos.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProcedimientoResponse'
+    post:
+      tags: [Procedimientos]
+      summary: Crear procedimiento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcedimientoRequest'
+            examples:
+              ejemplo:
+                value:
+                  nombre: Consulta General
+                  precio: 120000
+                  duracionMinutos: 30
+      responses:
+        '201':
+          description: Procedimiento creado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcedimientoResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/procedimientos/{id}:
+    get:
+      tags: [Procedimientos]
+      summary: Obtener procedimiento por id
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Procedimiento encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcedimientoResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Procedimientos]
+      summary: Actualizar procedimiento
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcedimientoRequest'
+      responses:
+        '200':
+          description: Procedimiento actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcedimientoResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Procedimientos]
+      summary: Eliminar procedimiento
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Procedimiento eliminado correctamente.
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/citas:
+    get:
+      tags: [Citas]
+      summary: Listar citas
+      description: |
+        Devuelve las citas ordenadas por fecha y hora.
+        Si se envia `fecha`, filtra solo las citas de ese dia.
+      parameters:
         - name: fecha
           in: query
-          required: true
-          description: Fecha base para el cálculo (Ej. 2026-04-12).
+          required: false
+          description: Fecha a consultar en formato YYYY-MM-DD.
           schema:
             type: string
             format: date
       responses:
         '200':
-          description: Resumen financiero calculado exitosamente.
+          description: Lista de citas.
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  periodoAnalizado: {type: string, example: "mes"}
-                  totalGanancias: {type: number, format: double, example: 4500000.00}
-                  citasAtendidas: {type: integer, example: 42}
+                type: array
+                items:
+                  $ref: '#/components/schemas/CitaResponse'
+    post:
+      tags: [Citas]
+      summary: Crear cita
+      description: |
+        Agenda una cita validando existencia de paciente, doctor y procedimiento.
+        Ademas, evita cruces exactos de agenda para doctor y paciente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CitaRequest'
+            examples:
+              ejemplo:
+                value:
+                  pacienteId: 1
+                  doctorId: 1
+                  procedimientoId: 1
+                  fechaHora: '2026-04-20T10:00:00'
+                  estado: PROGRAMADA
+      responses:
+        '201':
+          description: Cita creada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CitaResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/citas/{id}:
+    get:
+      tags: [Citas]
+      summary: Obtener cita por id
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Cita encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CitaResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Citas]
+      summary: Actualizar cita
+      description: Reprograma o modifica una cita existente.
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CitaRequest'
+      responses:
+        '200':
+          description: Cita actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CitaResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Citas]
+      summary: Eliminar cita
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Cita eliminada correctamente.
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/citas/{id}/cancelar:
+    patch:
+      tags: [Citas]
+      summary: Cancelar cita
+      description: Marca la cita como CANCELADA sin eliminar su registro.
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Cita cancelada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CitaResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
 components:
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      description: Identificador numerico del recurso.
+      schema:
+        type: integer
+        format: int32
+
+  responses:
+    BadRequest:
+      description: La solicitud contiene errores de validacion.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          examples:
+            ejemplo:
+              value:
+                mensaje: La solicitud contiene errores de validacion
+                errores:
+                  - email: El email debe tener un formato valido
+                  - nombreCompleto: El nombre completo es obligatorio
+    NotFound:
+      description: El recurso solicitado no existe.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          examples:
+            ejemplo:
+              value:
+                mensaje: Paciente no encontrado con id 99
+                errores: []
+    Conflict:
+      description: La operacion entra en conflicto con reglas de negocio o duplicados.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+          examples:
+            duplicado:
+              value:
+                mensaje: Ya existe un paciente con el documento 123456789
+                errores: []
+            agenda:
+              value:
+                mensaje: El doctor ya tiene una cita programada en esa fecha y hora
+                errores: []
+
   schemas:
-    Usuario:
+    PacienteRequest:
+      type: object
+      required:
+        - nombreCompleto
+        - documento
+        - telefono
+        - email
+        - direccion
+      properties:
+        nombreCompleto:
+          type: string
+          maxLength: 150
+          example: Ana Perez
+        documento:
+          type: string
+          maxLength: 30
+          example: "123456789"
+        telefono:
+          type: string
+          maxLength: 30
+          example: "3001234567"
+        email:
+          type: string
+          format: email
+          maxLength: 120
+          example: ana.perez@correo.com
+        direccion:
+          type: string
+          maxLength: 200
+          example: Calle 10 # 20-30
+
+    PacienteResponse:
       type: object
       properties:
-        email: {type: string}
-        password: {type: string}
-        rol: {type: string, enum: [PACIENTE, MEDICO, ADMIN]}
+        id:
+          type: integer
+          format: int32
+          example: 1
+        nombreCompleto:
+          type: string
+          example: Ana Perez
+        documento:
+          type: string
+          example: "123456789"
+        telefono:
+          type: string
+          example: "3001234567"
+        email:
+          type: string
+          format: email
+          example: ana.perez@correo.com
+        direccion:
+          type: string
+          example: Calle 10 # 20-30
+
+    DoctorRequest:
+      type: object
+      required:
+        - nombreCompleto
+        - especialidad
+        - registroMedico
+        - email
+      properties:
+        nombreCompleto:
+          type: string
+          maxLength: 150
+          example: Dra. Laura Gomez
+        especialidad:
+          type: string
+          maxLength: 100
+          example: Medicina General
+        registroMedico:
+          type: string
+          maxLength: 80
+          example: RM-001
+        email:
+          type: string
+          format: email
+          maxLength: 120
+          example: laura.gomez@medflow.com
+
+    DoctorResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+          example: 1
+        nombreCompleto:
+          type: string
+          example: Dra. Laura Gomez
+        especialidad:
+          type: string
+          example: Medicina General
+        registroMedico:
+          type: string
+          example: RM-001
+        email:
+          type: string
+          format: email
+          example: laura.gomez@medflow.com
+
+    ProcedimientoRequest:
+      type: object
+      required:
+        - nombre
+        - precio
+        - duracionMinutos
+      properties:
+        nombre:
+          type: string
+          maxLength: 120
+          example: Consulta General
+        precio:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 120000
+        duracionMinutos:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 30
+
+    ProcedimientoResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+          example: 1
+        nombre:
+          type: string
+          example: Consulta General
+        precio:
+          type: number
+          format: double
+          example: 120000
+        duracionMinutos:
+          type: integer
+          format: int32
+          example: 30
+
+    CitaRequest:
+      type: object
+      required:
+        - pacienteId
+        - doctorId
+        - procedimientoId
+        - fechaHora
+      properties:
+        pacienteId:
+          type: integer
+          format: int32
+          example: 1
+        doctorId:
+          type: integer
+          format: int32
+          example: 1
+        procedimientoId:
+          type: integer
+          format: int32
+          example: 1
+        fechaHora:
+          type: string
+          format: date-time
+          example: '2026-04-20T10:00:00'
+        estado:
+          type: string
+          maxLength: 50
+          description: |
+            Opcional. Si no se envia, el backend asigna PROGRAMADA.
+            Valores validos actualmente: PROGRAMADA, COMPLETADA, CANCELADA.
+          example: PROGRAMADA
+
+    CitaResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+          example: 1
+        fechaHora:
+          type: string
+          format: date-time
+          example: '2026-04-20T10:00:00'
+        estado:
+          type: string
+          example: PROGRAMADA
+        pacienteId:
+          type: integer
+          format: int32
+          example: 1
+        pacienteNombre:
+          type: string
+          example: Ana Perez
+        doctorId:
+          type: integer
+          format: int32
+          example: 1
+        doctorNombre:
+          type: string
+          example: Dra. Laura Gomez
+        doctorEspecialidad:
+          type: string
+          example: Medicina General
+        procedimientoId:
+          type: integer
+          format: int32
+          example: 1
+        procedimientoNombre:
+          type: string
+          example: Consulta General
+        procedimientoDuracionMinutos:
+          type: integer
+          format: int32
+          example: 30
+
+    ApiErrorResponse:
+      type: object
+      properties:
+        mensaje:
+          type: string
+          example: La solicitud contiene errores de validacion
+        errores:
+          type: array
+          items:
+            type: string
