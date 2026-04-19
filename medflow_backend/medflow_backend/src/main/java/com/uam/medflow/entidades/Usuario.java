@@ -28,9 +28,6 @@ public class Usuario {
     @OneToOne(mappedBy = "usuario")
     private Doctor doctor;
 
-    @OneToOne(mappedBy = "usuario")
-    private Paciente paciente;
-
     public Usuario() {
     }
 
@@ -72,13 +69,5 @@ public class Usuario {
 
     public void setDoctor(Doctor doctor) {
         this.doctor = doctor;
-    }
-
-    public Paciente getPaciente() {
-        return paciente;
-    }
-
-    public void setPaciente(Paciente paciente) {
-        this.paciente = paciente;
     }
 }
