@@ -5,7 +5,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -24,9 +23,6 @@ public class Usuario {
 
     @Column(nullable = false, length = 50)
     private String rol;
-
-    @OneToOne(mappedBy = "usuario")
-    private Doctor doctor;
 
     public Usuario() {
     }
@@ -61,13 +57,5 @@ public class Usuario {
 
     public void setRol(String rol) {
         this.rol = rol;
-    }
-
-    public Doctor getDoctor() {
-        return doctor;
-    }
-
-    public void setDoctor(Doctor doctor) {
-        this.doctor = doctor;
     }
 }

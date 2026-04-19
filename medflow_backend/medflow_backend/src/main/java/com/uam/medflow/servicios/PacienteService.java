@@ -60,7 +60,7 @@ public class PacienteService {
         pacienteRepository.delete(paciente);
     }
 
-    private Paciente buscarEntidad(Integer id) {
+    public Paciente buscarEntidad(Integer id) {
         return pacienteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Paciente no encontrado con id " + id));
     }
