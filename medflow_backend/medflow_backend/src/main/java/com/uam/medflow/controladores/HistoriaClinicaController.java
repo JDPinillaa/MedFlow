@@ -19,7 +19,7 @@ import com.uam.medflow.servicios.HistoriaClinicaService;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/historias-clinicas")
+@RequestMapping("/api/v1/historias-clinicas")
 public class HistoriaClinicaController {
 
     private final HistoriaClinicaService historiaClinicaService;

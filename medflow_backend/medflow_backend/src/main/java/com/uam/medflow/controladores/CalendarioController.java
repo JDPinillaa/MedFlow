@@ -20,7 +20,7 @@ import com.uam.medflow.servicios.CalendarioService;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/calendario")
+@RequestMapping("/api/v1/calendario")
 public class CalendarioController {
 
     private final CalendarioService calendarioService;

@@ -22,7 +22,7 @@ import com.uam.medflow.servicios.DoctorService;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/doctores")
+@RequestMapping("/api/v1/doctores")
 public class DoctorController {
 
     private final DoctorService doctorService;

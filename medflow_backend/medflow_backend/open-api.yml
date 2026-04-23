@@ -52,7 +52,7 @@ tags:
     description: Vista unificada de citas y eventos propios del calendario del doctor.
 
 paths:
-  /api/pacientes:
+  /api/v1/pacientes:
     get:
       tags: [Pacientes]
       summary: Listar pacientes
@@ -105,7 +105,7 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
-  /api/pacientes/{id}:
+  /api/v1/pacientes/{id}:
     get:
       tags: [Pacientes]
       summary: Obtener paciente por id
@@ -156,7 +156,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/doctores:
+  /api/v1/doctores:
     get:
       tags: [Doctores]
       summary: Listar doctores
@@ -206,7 +206,7 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
-  /api/doctores/{id}:
+  /api/v1/doctores/{id}:
     get:
       tags: [Doctores]
       summary: Obtener doctor por id
@@ -256,7 +256,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/procedimientos:
+  /api/v1/procedimientos:
     get:
       tags: [Procedimientos]
       summary: Listar procedimientos
@@ -305,7 +305,7 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
-  /api/procedimientos/{id}:
+  /api/v1/procedimientos/{id}:
     get:
       tags: [Procedimientos]
       summary: Obtener procedimiento por id
@@ -355,7 +355,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/citas:
+  /api/v1/citas:
     get:
       tags: [Citas]
       summary: Listar citas
@@ -413,7 +413,7 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
-  /api/citas/{id}:
+  /api/v1/citas/{id}:
     get:
       tags: [Citas]
       summary: Obtener cita por id
@@ -464,7 +464,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/citas/{id}/cancelar:
+  /api/v1/citas/{id}/cancelar:
     patch:
       tags: [Citas]
       summary: Cancelar cita
@@ -481,7 +481,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/historias-clinicas:
+  /api/v1/historias-clinicas:
     get:
       tags: [Historias Clinicas]
       summary: Listar historias clinicas
@@ -530,7 +530,7 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
-  /api/historias-clinicas/{id}:
+  /api/v1/historias-clinicas/{id}:
     get:
       tags: [Historias Clinicas]
       summary: Obtener historia clinica por id
@@ -571,7 +571,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/calendario:
+  /api/v1/calendario:
     get:
       tags: [Calendario Medico]
       summary: Ver calendario medico
@@ -650,7 +650,7 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
-  /api/calendario/eventos:
+  /api/v1/calendario/eventos:
     post:
       tags: [Calendario Medico]
       summary: Crear evento de calendario
@@ -686,7 +686,7 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
-  /api/historias-clinicas/paciente/{pacienteId}:
+  /api/v1/historias-clinicas/paciente/{pacienteId}:
     get:
       tags: [Historias Clinicas]
       summary: Listar historias clinicas por paciente

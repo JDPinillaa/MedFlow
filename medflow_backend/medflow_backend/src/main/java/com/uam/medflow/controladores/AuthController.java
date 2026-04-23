@@ -8,7 +8,7 @@ import com.uam.medflow.servicios.AuthService;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth")
 @CrossOrigin("*")
 public class AuthController {
 

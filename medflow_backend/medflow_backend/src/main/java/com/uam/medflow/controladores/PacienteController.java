@@ -21,7 +21,7 @@ import com.uam.medflow.servicios.PacienteService;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/pacientes")
+@RequestMapping("/api/v1/pacientes")
 public class PacienteController {
 
     private final PacienteService pacienteService;
