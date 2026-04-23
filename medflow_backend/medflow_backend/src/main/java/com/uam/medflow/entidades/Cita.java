@@ -40,9 +40,6 @@ public class Cita {
     private String estado;
 
     @OneToOne(mappedBy = "cita")
-    private Factura factura;
-
-    @OneToOne(mappedBy = "cita")
     private HistoriaClinica historiaClinica;
 
     public Cita() {
@@ -94,14 +91,6 @@ public class Cita {
 
     public void setEstado(String estado) {
         this.estado = estado;
-    }
-
-    public Factura getFactura() {
-        return factura;
-    }
-
-    public void setFactura(Factura factura) {
-        this.factura = factura;
     }
 
     public HistoriaClinica getHistoriaClinica() {

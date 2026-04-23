@@ -18,6 +18,12 @@ public class GlobalExceptionHandler {
                 .body(new ApiErrorResponse(ex.getMessage(), List.of()));
     }
 
+    @ExceptionHandler(CredencialesInvalidasException.class)
+    public ResponseEntity<ApiErrorResponse> handleCredencialesInvalidas(CredencialesInvalidasException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ApiErrorResponse(ex.getMessage(), List.of()));
+    }
+
     @ExceptionHandler(ConflictoException.class)
     public ResponseEntity<ApiErrorResponse> handleConflicto(ConflictoException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)

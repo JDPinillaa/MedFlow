@@ -8,20 +8,35 @@ Esta guia resume el orden recomendado para validar el backend antes de iniciar e
 
 Los datos creados en Thunder Client quedan persistidos en MySQL (`clinica_db`) hasta que se eliminen por endpoints o se limpie la base de datos manualmente.
 
+La API ahora exige JWT para todos los endpoints bajo `/api/v1/**`, excepto `POST /api/v1/auth/login`.
+Primero debes autenticarte y luego enviar el header `Authorization: Bearer <token>`.
+
+Tambien necesitas al menos un registro en `usuarios` con contrasena en formato BCrypt para poder iniciar sesion.
+
 ## Orden recomendado
 
-1. Crear paciente: `POST /api/pacientes`
-2. Crear doctor: `POST /api/doctores`
-3. Crear procedimiento: `POST /api/procedimientos`
-4. Crear cita: `POST /api/citas`
-5. Editar doctor: `PUT /api/doctores/{id}`
-6. Crear historia clinica: `POST /api/historias-clinicas`
-7. Consultar historia por id: `GET /api/historias-clinicas/{id}`
-8. Consultar historia por paciente: `GET /api/historias-clinicas/paciente/{pacienteId}`
-9. Crear evento de calendario: `POST /api/calendario/eventos`
-10. Ver calendario integrado: `GET /api/calendario?doctorId=1&desde=2026-04-30T00:00:00&hasta=2026-05-01T00:00:00`
+1. Iniciar sesion: `POST /api/v1/auth/login`
+2. Crear paciente: `POST /api/v1/pacientes`
+3. Crear doctor: `POST /api/v1/doctores`
+4. Crear procedimiento: `POST /api/v1/procedimientos`
+5. Crear cita: `POST /api/v1/citas`
+6. Editar doctor: `PUT /api/v1/doctores/{id}`
+7. Crear historia clinica: `POST /api/v1/historias-clinicas`
+8. Consultar historia por id: `GET /api/v1/historias-clinicas/{id}`
+9. Consultar historia por paciente: `GET /api/v1/historias-clinicas/paciente/{pacienteId}`
+10. Crear evento de calendario: `POST /api/v1/calendario/eventos`
+11. Ver calendario integrado: `GET /api/v1/calendario?doctorId=1&desde=2026-04-30T00:00:00&hasta=2026-05-01T00:00:00`
 
 ## Bodies principales
+
+Login:
+
+```json
+{
+  "email": "admin@medflow.com",
+  "password": "admin123"
+}
+```
 
 Paciente:
 

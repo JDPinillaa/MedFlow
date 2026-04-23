@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: MedFlow Backend API
-  version: 1.3.0
+  version: 1.4.0
   description: |
     Contrato OpenAPI del estado actual del backend de MedFlow.
 
@@ -14,8 +14,9 @@ info:
     - Ya existe gestion de citas con validaciones basicas de agenda.
     - Ya existe registro y consulta de historias clinicas asociadas a citas.
     - Ya existe calendario medico con integracion de citas y eventos propios del doctor.
+    - Ya existe autenticacion JWT por login contra usuarios registrados en la tabla `usuarios`.
     - El backend permite consumo local desde el frontend Vite en http://localhost:5173 via CORS.
-    - Autenticacion y facturacion siguen pendientes de implementacion.
+    - Facturacion sigue pendiente de implementacion.
 
     Reglas de negocio ya activas:
     - Pacientes no pueden repetir documento ni email.
@@ -37,7 +38,12 @@ servers:
   - url: http://localhost:8080
     description: Servidor local de desarrollo
 
+security:
+  - bearerAuth: []
+
 tags:
+  - name: Auth
+    description: Autenticacion y emision de token JWT.
   - name: Pacientes
     description: Gestion del directorio de pacientes del consultorio.
   - name: Doctores
@@ -52,6 +58,46 @@ tags:
     description: Vista unificada de citas y eventos propios del calendario del doctor.
 
 paths:
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesion
+      description: |
+        Valida email y contrasena del usuario y devuelve un JWT para consumir el resto
+        de endpoints protegidos.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              ejemplo:
+                value:
+                  email: admin@medflow.com
+                  password: admin123
+      responses:
+        '200':
+          description: Login exitoso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Credenciales invalidas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+              examples:
+                ejemplo:
+                  value:
+                    mensaje: Credenciales invalidas
+                    errores: []
+
   /api/v1/pacientes:
     get:
       tags: [Pacientes]
@@ -701,6 +747,12 @@ paths:
           $ref: '#/components/responses/NotFound'
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   parameters:
     IdPath:
       name: id
@@ -753,6 +805,38 @@ components:
                 errores: []
 
   schemas:
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: admin@medflow.com
+        password:
+          type: string
+          example: admin123
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbkBtZWRmbG93LmNvbSIsInJvbCI6IkFETUlOIiwiaWF0IjoxNzEwMDAwMDAwLCJleHAiOjE3MTAwODY0MDB9.firma
+        usuarioId:
+          type: integer
+          format: int32
+          example: 1
+        email:
+          type: string
+          format: email
+          example: admin@medflow.com
+        rol:
+          type: string
+          example: ADMIN
+
     PacienteRequest:
       type: object
       required:
