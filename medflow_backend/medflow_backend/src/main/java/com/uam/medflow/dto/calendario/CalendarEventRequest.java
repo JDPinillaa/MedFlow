@@ -1,7 +1,6 @@
 package com.uam.medflow.dto.calendario;
 
 import java.time.LocalDateTime;
-
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -24,5 +23,7 @@ public record CalendarEventRequest(
 
         @NotNull(message = "La fecha y hora de fin son obligatorias")
         @Future(message = "El evento debe finalizar en una fecha futura")
-        LocalDateTime fin) {
-}
+        LocalDateTime fin,
+
+        boolean ignorarConflicto
+) {}

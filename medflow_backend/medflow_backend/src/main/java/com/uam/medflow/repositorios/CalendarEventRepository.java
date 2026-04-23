@@ -1,6 +1,6 @@
 package com.uam.medflow.repositorios;
 
-import com.uam.medflow.entidades.Cita;
+import com.uam.medflow.entidades.CalendarEvent;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -9,13 +9,16 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface CitaRepository extends JpaRepository<Cita, Integer> {
-    @Query("SELECT c FROM Cita c WHERE c.fechaHora BETWEEN :desde AND :hasta")
-    List<Cita> buscarPorRango(@Param("desde") LocalDateTime desde, @Param("hasta") LocalDateTime hasta);
+public interface CalendarEventRepository extends JpaRepository<CalendarEvent, Integer> {
 
-    @Query("SELECT c FROM Cita c WHERE c.doctor.id = :doctorId AND c.fechaHora BETWEEN :desde AND :hasta")
-    List<Cita> buscarPorDoctorYRango(@Param("doctorId") Integer doctorId, @Param("desde") LocalDateTime desde, @Param("hasta") LocalDateTime hasta);
+    @Query("SELECT e FROM CalendarEvent e JOIN FETCH e.doctor WHERE e.inicio BETWEEN :desde AND :hasta")
+    List<CalendarEvent> buscarPorRango(@Param("desde") LocalDateTime desde, @Param("hasta") LocalDateTime hasta);
 
+    @Query("SELECT e FROM CalendarEvent e JOIN FETCH e.doctor WHERE e.doctor.id = :doctorId AND e.inicio < :hasta AND e.fin > :desde")
+    List<CalendarEvent> buscarPorDoctorYRango(@Param("doctorId") Integer doctorId, @Param("desde") LocalDateTime desde, @Param("hasta") LocalDateTime hasta);
+
+    @Query("SELECT COUNT(e) > 0 FROM CalendarEvent e WHERE e.doctor.id = :doctorId AND (:inicio < e.fin AND :fin > e.inicio)")
+    boolean existeCruceEvento(@Param("doctorId") Integer doctorId, @Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 
     @Query("""
             select e

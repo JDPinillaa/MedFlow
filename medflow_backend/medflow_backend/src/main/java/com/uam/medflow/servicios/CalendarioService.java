@@ -1,8 +1,10 @@
 package com.uam.medflow.servicios;
 
+import com.uam.medflow.dto.calendario.CalendarEventRequest;
 import com.uam.medflow.dto.calendario.CalendarEventResponse;
 import com.uam.medflow.entidades.CalendarEvent;
 import com.uam.medflow.entidades.Cita;
+import com.uam.medflow.entidades.Doctor;
 import com.uam.medflow.excepciones.ConflictoException;
 import com.uam.medflow.repositorios.CalendarEventRepository;
 import com.uam.medflow.repositorios.CitaRepository;
@@ -17,15 +19,14 @@ import java.util.stream.Stream;
 @Transactional
 public class CalendarioService {
 
-    private static final String TIPO_CITA = "CITA";
-    private static final String TIPO_EVENTO = "EVENTO";
-
     private final CalendarEventRepository calendarEventRepository;
     private final CitaRepository citaRepository;
+    private final DoctorService doctorService;
 
-    public CalendarioService(CalendarEventRepository calendarEventRepository, CitaRepository citaRepository) {
+    public CalendarioService(CalendarEventRepository calendarEventRepository, CitaRepository citaRepository, DoctorService doctorService) {
         this.calendarEventRepository = calendarEventRepository;
         this.citaRepository = citaRepository;
+        this.doctorService = doctorService;
     }
 
     @Transactional(readOnly = true)
@@ -34,12 +35,12 @@ public class CalendarioService {
 
         List<CalendarEventResponse> citas = citaRepository.buscarPorRango(desde, hasta)
                 .stream()
-                .map(this::toCalendarResponse)
+                .map(this::mapToResponse)
                 .toList();
 
         List<CalendarEventResponse> eventos = calendarEventRepository.buscarPorRango(desde, hasta)
                 .stream()
-                .map(this::toCalendarResponse)
+                .map(this::mapToResponse)
                 .toList();
 
         return Stream.concat(citas.stream(), eventos.stream())
@@ -47,23 +48,42 @@ public class CalendarioService {
                 .toList();
     }
 
+    public CalendarEventResponse crearEvento(CalendarEventRequest request) {
+        validarRango(request.inicio(), request.fin());
+
+        if (!request.ignorarConflicto()) {
+            boolean hayConflicto = calendarEventRepository.existeCruceEvento(request.doctorId(), request.inicio(), request.fin());
+            if (hayConflicto) {
+                throw new ConflictoException("Existe un conflicto de horario");
+            }
+        }
+
+        Doctor doctor = doctorService.buscarEntidad(request.doctorId());
+
+        CalendarEvent evento = new CalendarEvent();
+        evento.setTitulo(request.titulo());
+        evento.setDescripcion(request.descripcion());
+        evento.setInicio(request.inicio());
+        evento.setFin(request.fin());
+        evento.setDoctor(doctor);
+
+        return mapToResponse(calendarEventRepository.save(evento));
+    }
+
     private void validarRango(LocalDateTime inicio, LocalDateTime fin) {
-        if (!fin.isAfter(inicio)) {
-            throw new ConflictoException("La fecha y hora de fin debe ser posterior al inicio");
+        if (fin.isBefore(inicio) || fin.isEqual(inicio)) {
+            throw new ConflictoException("La fecha de fin debe ser posterior a la de inicio");
         }
     }
 
-    private CalendarEventResponse toCalendarResponse(Cita cita) {
-        LocalDateTime inicio = cita.getFechaHora();
-        LocalDateTime fin = inicio.plusMinutes(cita.getProcedimiento().getDuracionMinutos());
-
+    private CalendarEventResponse mapToResponse(Cita cita) {
         return new CalendarEventResponse(
                 cita.getId(),
-                TIPO_CITA,
-                cita.getProcedimiento().getNombre() + " - " + cita.getPaciente().getNombreCompleto(),
-                null,
-                inicio,
-                fin,
+                "CITA",
+                "Cita: " + cita.getPaciente().getNombreCompleto(),
+                cita.getProcedimiento().getNombre(),
+                cita.getFechaHora(),
+                cita.getFechaHora().plusMinutes(cita.getProcedimiento().getDuracionMinutos()),
                 cita.getEstado(),
                 cita.getDoctor().getId(),
                 cita.getDoctor().getNombreCompleto(),
@@ -72,18 +92,19 @@ public class CalendarioService {
                 cita.getId(),
                 null,
                 cita.getProcedimiento().getId(),
-                cita.getProcedimiento().getNombre());
+                cita.getProcedimiento().getNombre()
+        );
     }
 
-    private CalendarEventResponse toCalendarResponse(CalendarEvent event) {
+    private CalendarEventResponse mapToResponse(CalendarEvent event) {
         return new CalendarEventResponse(
                 event.getId(),
-                TIPO_EVENTO,
+                "EVENTO",
                 event.getTitulo(),
                 event.getDescripcion(),
                 event.getInicio(),
                 event.getFin(),
-                null,
+                "PROGRAMADO",
                 event.getDoctor().getId(),
                 event.getDoctor().getNombreCompleto(),
                 null,
@@ -91,6 +112,7 @@ public class CalendarioService {
                 null,
                 event.getId(),
                 null,
-                null);
+                null
+        );
     }
 }

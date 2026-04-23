@@ -7,14 +7,25 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface CitaRepository extends JpaRepository<Cita, Integer> {
-    @Query("SELECT c FROM Cita c WHERE c.fechaHora BETWEEN :desde AND :hasta")
+
+    @Query("SELECT c FROM Cita c JOIN FETCH c.paciente JOIN FETCH c.doctor JOIN FETCH c.procedimiento WHERE c.fechaHora BETWEEN :desde AND :hasta")
     List<Cita> buscarPorRango(@Param("desde") LocalDateTime desde, @Param("hasta") LocalDateTime hasta);
 
-    @Query("SELECT c FROM Cita c WHERE c.doctor.id = :doctorId AND c.fechaHora BETWEEN :desde AND :hasta")
+    @Query("SELECT c FROM Cita c JOIN FETCH c.paciente JOIN FETCH c.doctor JOIN FETCH c.procedimiento WHERE c.doctor.id = :doctorId AND c.fechaHora BETWEEN :desde AND :hasta")
     List<Cita> buscarPorDoctorYRango(@Param("doctorId") Integer doctorId, @Param("desde") LocalDateTime desde, @Param("hasta") LocalDateTime hasta);
+
+    @Query("SELECT c FROM Cita c JOIN FETCH c.paciente JOIN FETCH c.doctor JOIN FETCH c.procedimiento WHERE c.id = :id")
+    Optional<Cita> findConRelacionesById(@Param("id") Integer id);
+
+    @Query("SELECT COUNT(c) > 0 FROM Cita c WHERE c.doctor.id = :doctorId AND c.fechaHora = :fechaHora AND UPPER(c.estado) <> 'CANCELADA' AND (:citaId IS NULL OR c.id <> :citaId)")
+    boolean existeCruceDoctor(@Param("doctorId") Integer doctorId, @Param("fechaHora") LocalDateTime fechaHora, @Param("citaId") Integer citaId);
+
+    @Query("SELECT COUNT(c) > 0 FROM Cita c WHERE c.paciente.id = :pacienteId AND c.fechaHora = :fechaHora AND UPPER(c.estado) <> 'CANCELADA' AND (:citaId IS NULL OR c.id <> :citaId)")
+    boolean existeCrucePaciente(@Param("pacienteId") Integer pacienteId, @Param("fechaHora") LocalDateTime fechaHora, @Param("citaId") Integer citaId);
 
     @Query("""
             select c
