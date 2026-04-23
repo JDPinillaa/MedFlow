@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.uam.medflow.dto.doctor.DoctorRequest;
 import com.uam.medflow.dto.doctor.DoctorResponse;
+import com.uam.medflow.dto.doctor.DoctorUpdateResponse;
 import com.uam.medflow.servicios.DoctorService;
 
 import jakarta.validation.Valid;
@@ -47,8 +48,9 @@ public class DoctorController {
     }
 
     @PutMapping("/{id}")
-    public DoctorResponse actualizar(@PathVariable Integer id, @Valid @RequestBody DoctorRequest request) {
-        return doctorService.actualizar(id, request);
+    public DoctorUpdateResponse actualizar(@PathVariable Integer id, @Valid @RequestBody DoctorRequest request) {
+        DoctorResponse doctorActualizado = doctorService.actualizar(id, request);
+        return new DoctorUpdateResponse("Doctor actualizado correctamente", doctorActualizado);
     }
 
     @DeleteMapping("/{id}")

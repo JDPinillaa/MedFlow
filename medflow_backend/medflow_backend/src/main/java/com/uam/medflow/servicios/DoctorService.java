@@ -1,6 +1,7 @@
 package com.uam.medflow.servicios;
 
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,26 +63,37 @@ public class DoctorService {
     }
 
     private void validarDuplicados(DoctorRequest request, Integer id) {
+        String registroMedico = normalizarTexto(request.registroMedico());
+        String email = normalizarEmail(request.email());
+
         boolean registroDuplicado = id == null
-                ? doctorRepository.existsByRegistroMedicoIgnoreCase(request.registroMedico())
-                : doctorRepository.existsByRegistroMedicoIgnoreCaseAndIdNot(request.registroMedico(), id);
+                ? doctorRepository.existsByRegistroMedicoIgnoreCase(registroMedico)
+                : doctorRepository.existsByRegistroMedicoIgnoreCaseAndIdNot(registroMedico, id);
         if (registroDuplicado) {
-            throw new ConflictoException("Ya existe un doctor con el registro medico " + request.registroMedico());
+            throw new ConflictoException("Ya existe un doctor con el registro medico " + registroMedico);
         }
 
         boolean emailDuplicado = id == null
-                ? doctorRepository.existsByEmailIgnoreCase(request.email())
-                : doctorRepository.existsByEmailIgnoreCaseAndIdNot(request.email(), id);
+                ? doctorRepository.existsByEmailIgnoreCase(email)
+                : doctorRepository.existsByEmailIgnoreCaseAndIdNot(email, id);
         if (emailDuplicado) {
-            throw new ConflictoException("Ya existe un doctor con el email " + request.email());
+            throw new ConflictoException("El correo " + email + " ya esta en uso");
         }
     }
 
     private void aplicarCambios(Doctor doctor, DoctorRequest request) {
-        doctor.setNombreCompleto(request.nombreCompleto().trim());
-        doctor.setEspecialidad(request.especialidad().trim());
-        doctor.setRegistroMedico(request.registroMedico().trim());
-        doctor.setEmail(request.email().trim().toLowerCase());
+        doctor.setNombreCompleto(normalizarTexto(request.nombreCompleto()));
+        doctor.setEspecialidad(normalizarTexto(request.especialidad()));
+        doctor.setRegistroMedico(normalizarTexto(request.registroMedico()));
+        doctor.setEmail(normalizarEmail(request.email()));
+    }
+
+    private String normalizarTexto(String valor) {
+        return valor.trim();
+    }
+
+    private String normalizarEmail(String email) {
+        return normalizarTexto(email).toLowerCase(Locale.ROOT);
     }
 
     private DoctorResponse toResponse(Doctor doctor) {

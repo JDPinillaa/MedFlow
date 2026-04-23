@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: MedFlow Backend API
-  version: 1.2.0
+  version: 1.3.0
   description: |
     Contrato OpenAPI del estado actual del backend de MedFlow.
 
@@ -14,6 +14,7 @@ info:
     - Ya existe gestion de citas con validaciones basicas de agenda.
     - Ya existe registro y consulta de historias clinicas asociadas a citas.
     - Ya existe calendario medico con integracion de citas y eventos propios del doctor.
+    - El backend permite consumo local desde el frontend Vite en http://localhost:5173 via CORS.
     - Autenticacion y facturacion siguen pendientes de implementacion.
 
     Reglas de negocio ya activas:
@@ -233,11 +234,11 @@ paths:
               $ref: '#/components/schemas/DoctorRequest'
       responses:
         '200':
-          description: Doctor actualizado correctamente.
+          description: Doctor actualizado correctamente y mensaje de confirmacion para la interfaz.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DoctorResponse'
+                $ref: '#/components/schemas/DoctorUpdateResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
@@ -611,6 +612,39 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CalendarEventResponse'
+              examples:
+                citaYEvento:
+                  value:
+                    - id: 3
+                      tipo: CITA
+                      titulo: Consulta General - Ana Perez
+                      descripcion: null
+                      inicio: '2026-04-30T10:00:00'
+                      fin: '2026-04-30T10:30:00'
+                      estado: COMPLETADA
+                      doctorId: 1
+                      doctorNombre: Dra. Laura Gomez
+                      pacienteId: 1
+                      pacienteNombre: Ana Perez
+                      citaId: 3
+                      eventoId: null
+                      procedimientoId: 1
+                      procedimientoNombre: Consulta General
+                    - id: 1
+                      tipo: EVENTO
+                      titulo: Reunion administrativa
+                      descripcion: Revision de agenda semanal
+                      inicio: '2026-04-30T14:00:00'
+                      fin: '2026-04-30T15:00:00'
+                      estado: null
+                      doctorId: 1
+                      doctorNombre: Dra. Laura Gomez
+                      pacienteId: null
+                      pacienteNombre: null
+                      citaId: null
+                      eventoId: 1
+                      procedimientoId: null
+                      procedimientoNombre: null
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -649,8 +683,6 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '409':
           $ref: '#/components/responses/Conflict'
 
@@ -832,6 +864,15 @@ components:
           type: string
           format: email
           example: laura.gomez@medflow.com
+
+    DoctorUpdateResponse:
+      type: object
+      properties:
+        mensaje:
+          type: string
+          example: Doctor actualizado correctamente
+        doctor:
+          $ref: '#/components/schemas/DoctorResponse'
 
     ProcedimientoRequest:
       type: object
