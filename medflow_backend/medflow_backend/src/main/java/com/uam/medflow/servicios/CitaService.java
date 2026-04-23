@@ -99,7 +99,7 @@ public class CitaService {
         citaRepository.delete(buscarEntidad(id));
     }
 
-    private Cita buscarEntidad(Integer id) {
+    public Cita buscarEntidad(Integer id) {
         return citaRepository.findConRelacionesById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Cita no encontrada con id " + id));
     }

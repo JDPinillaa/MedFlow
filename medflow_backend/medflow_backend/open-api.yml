@@ -12,7 +12,8 @@ info:
     - El MVP actual esta orientado a gestion administrativa del consultorio.
     - Ya existen CRUDs funcionales para pacientes, doctores y procedimientos.
     - Ya existe gestion de citas con validaciones basicas de agenda.
-    - Autenticacion, historia clinica, facturacion y calendario siguen pendientes de implementacion.
+    - Ya existe registro y consulta de historias clinicas asociadas a citas.
+    - Autenticacion, facturacion y calendario siguen pendientes de implementacion.
 
     Reglas de negocio ya activas:
     - Pacientes no pueden repetir documento ni email.
@@ -22,6 +23,9 @@ info:
     - Un doctor no puede tener dos citas a la misma fecha y hora.
     - Un paciente no puede tener dos citas a la misma fecha y hora.
     - Los estados de cita validos actualmente son PROGRAMADA, COMPLETADA y CANCELADA.
+    - Una cita solo puede tener una historia clinica.
+    - No se permite crear historia clinica para una cita cancelada.
+    - Al crear una historia clinica, la cita asociada queda marcada como COMPLETADA.
 servers:
   - url: http://localhost:8080
     description: Servidor local de desarrollo
@@ -35,6 +39,8 @@ tags:
     description: Catalogo base de servicios o procedimientos medicos.
   - name: Citas
     description: Agendamiento y seguimiento operativo de citas.
+  - name: Historias Clinicas
+    description: Registro y consulta de observaciones clinicas asociadas a citas.
 
 paths:
   /api/pacientes:
@@ -466,6 +472,119 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/historias-clinicas:
+    get:
+      tags: [Historias Clinicas]
+      summary: Listar historias clinicas
+      description: Devuelve todas las historias clinicas ordenadas por fecha de registro descendente.
+      responses:
+        '200':
+          description: Lista de historias clinicas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoriaClinicaResponse'
+    post:
+      tags: [Historias Clinicas]
+      summary: Crear historia clinica
+      description: |
+        Crea una historia clinica asociada a una cita existente.
+        El paciente y el doctor se toman desde la cita, no se envian manualmente.
+        Si la cita esta cancelada o ya tiene historia clinica, se devuelve conflicto.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HistoriaClinicaRequest'
+            examples:
+              ejemplo:
+                value:
+                  citaId: 1
+                  observaciones: Paciente refiere dolor de garganta de dos dias de evolucion. Se indican cuidados generales y control si empeora.
+      responses:
+        '201':
+          description: Historia clinica creada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoriaClinicaResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/historias-clinicas/{id}:
+    get:
+      tags: [Historias Clinicas]
+      summary: Obtener historia clinica por id
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Historia clinica encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoriaClinicaResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Historias Clinicas]
+      summary: Actualizar observaciones de historia clinica
+      description: |
+        Actualiza las observaciones manteniendo la misma cita asociada.
+        No permite cambiar la cita de una historia clinica ya creada.
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HistoriaClinicaRequest'
+      responses:
+        '200':
+          description: Historia clinica actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoriaClinicaResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/historias-clinicas/paciente/{pacienteId}:
+    get:
+      tags: [Historias Clinicas]
+      summary: Listar historias clinicas por paciente
+      parameters:
+        - name: pacienteId
+          in: path
+          required: true
+          description: Identificador del paciente.
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: Historial clinico del paciente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoriaClinicaResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   parameters:
     IdPath:
@@ -736,6 +855,71 @@ components:
           type: integer
           format: int32
           example: 30
+
+    HistoriaClinicaRequest:
+      type: object
+      required:
+        - citaId
+        - observaciones
+      properties:
+        citaId:
+          type: integer
+          format: int32
+          example: 1
+        observaciones:
+          type: string
+          maxLength: 5000
+          example: Paciente refiere dolor de garganta de dos dias de evolucion. Se indican cuidados generales y control si empeora.
+
+    HistoriaClinicaResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+          example: 1
+        fechaRegistro:
+          type: string
+          format: date-time
+          example: '2026-04-22T21:10:00'
+        observaciones:
+          type: string
+          example: Paciente refiere dolor de garganta de dos dias de evolucion. Se indican cuidados generales y control si empeora.
+        citaId:
+          type: integer
+          format: int32
+          example: 1
+        citaFechaHora:
+          type: string
+          format: date-time
+          example: '2026-04-23T10:00:00'
+        citaEstado:
+          type: string
+          example: COMPLETADA
+        pacienteId:
+          type: integer
+          format: int32
+          example: 1
+        pacienteNombre:
+          type: string
+          example: Ana Perez
+        doctorId:
+          type: integer
+          format: int32
+          example: 1
+        doctorNombre:
+          type: string
+          example: Dra. Laura Gomez
+        doctorEspecialidad:
+          type: string
+          example: Medicina General
+        procedimientoId:
+          type: integer
+          format: int32
+          example: 1
+        procedimientoNombre:
+          type: string
+          example: Consulta General
 
     ApiErrorResponse:
       type: object
