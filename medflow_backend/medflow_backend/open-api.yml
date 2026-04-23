@@ -453,16 +453,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-    delete:
-      tags: [Citas]
-      summary: Eliminar cita
-      parameters:
-        - $ref: '#/components/parameters/IdPath'
-      responses:
-        '204':
-          description: Cita eliminada correctamente.
-        '404':
-          $ref: '#/components/responses/NotFound'
 
   /api/v1/citas/{id}/cancelar:
     patch:

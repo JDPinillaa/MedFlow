@@ -95,10 +95,6 @@ public class CitaService {
         return toResponse(citaRepository.save(cita));
     }
 
-    public void eliminar(Integer id) {
-        citaRepository.delete(buscarEntidad(id));
-    }
-
     public Cita buscarEntidad(Integer id) {
         return citaRepository.findConRelacionesById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Cita no encontrada con id " + id));

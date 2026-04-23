@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -41,6 +42,16 @@ public class CitaController {
     @ResponseStatus(HttpStatus.CREATED)
     public CitaResponse crear(@Valid @RequestBody CitaRequest request) {
         return citaService.crear(request);
+    }
+
+    @GetMapping("/{id}")
+    public CitaResponse obtenerPorId(@PathVariable Integer id) {
+        return citaService.obtenerPorId(id);
+    }
+
+    @PutMapping("/{id}")
+    public CitaResponse actualizar(@PathVariable Integer id, @Valid @RequestBody CitaRequest request) {
+        return citaService.actualizar(id, request);
     }
 
     @PatchMapping("/{id}/cancelar")
