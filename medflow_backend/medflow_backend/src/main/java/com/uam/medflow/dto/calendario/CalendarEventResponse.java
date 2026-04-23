@@ -17,5 +17,5 @@ public record CalendarEventResponse(
         Integer citaId,
         Integer eventoId,
         Integer procedimientoId,
-        String procedimientoNombre) {
-}
+        String procedimientoNombre
+) {}

@@ -1,16 +1,20 @@
 package com.uam.medflow.repositorios;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-
+import com.uam.medflow.entidades.Cita;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import java.time.LocalDateTime;
+import java.util.List;
 
-import com.uam.medflow.entidades.Cita;
-
+@Repository
 public interface CitaRepository extends JpaRepository<Cita, Integer> {
+    @Query("SELECT c FROM Cita c WHERE c.fechaHora BETWEEN :desde AND :hasta")
+    List<Cita> buscarPorRango(@Param("desde") LocalDateTime desde, @Param("hasta") LocalDateTime hasta);
+
+    @Query("SELECT c FROM Cita c WHERE c.doctor.id = :doctorId AND c.fechaHora BETWEEN :desde AND :hasta")
+    List<Cita> buscarPorDoctorYRango(@Param("doctorId") Integer doctorId, @Param("desde") LocalDateTime desde, @Param("hasta") LocalDateTime hasta);
 
     @Query("""
             select c
