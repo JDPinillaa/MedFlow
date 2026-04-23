@@ -44,6 +44,39 @@ public interface CitaRepository extends JpaRepository<Cita, Integer> {
     List<Cita> buscarPorFecha(@Param("fecha") LocalDate fecha);
 
     @Query("""
+            select c
+            from Cita c
+            join fetch c.paciente
+            join fetch c.doctor
+            join fetch c.procedimiento
+            where c.doctor.id = :doctorId
+              and c.fechaHora >= :desde
+              and c.fechaHora < :hasta
+            order by c.fechaHora asc
+            """)
+    List<Cita> buscarPorDoctorYRango(
+            @Param("doctorId") Integer doctorId,
+            @Param("desde") LocalDateTime desde,
+            @Param("hasta") LocalDateTime hasta);
+
+    @Query("""
+            select c
+            from Cita c
+            join fetch c.paciente
+            join fetch c.doctor
+            join fetch c.procedimiento
+            where c.doctor.id = :doctorId
+              and c.fechaHora >= :desdeBusqueda
+              and c.fechaHora < :fin
+              and upper(c.estado) <> 'CANCELADA'
+            order by c.fechaHora asc
+            """)
+    List<Cita> buscarCitasActivasParaCruceCalendario(
+            @Param("doctorId") Integer doctorId,
+            @Param("desdeBusqueda") LocalDateTime desdeBusqueda,
+            @Param("fin") LocalDateTime fin);
+
+    @Query("""
             select count(c) > 0
             from Cita c
             where c.doctor.id = :doctorId

@@ -35,8 +35,16 @@ public class HistoriaClinica {
     private Cita cita;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String diagnostico;
+
+    @Lob
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String observaciones;
+
+    @Lob
+    @Column(name = "datos_relevantes", nullable = false, columnDefinition = "TEXT")
+    private String datosRelevantes;
 
     @Column(name = "fecha_registro", nullable = false)
     private LocalDateTime fechaRegistro;
@@ -76,12 +84,28 @@ public class HistoriaClinica {
         this.cita = cita;
     }
 
+    public String getDiagnostico() {
+        return diagnostico;
+    }
+
+    public void setDiagnostico(String diagnostico) {
+        this.diagnostico = diagnostico;
+    }
+
     public String getObservaciones() {
         return observaciones;
     }
 
     public void setObservaciones(String observaciones) {
         this.observaciones = observaciones;
+    }
+
+    public String getDatosRelevantes() {
+        return datosRelevantes;
+    }
+
+    public void setDatosRelevantes(String datosRelevantes) {
+        this.datosRelevantes = datosRelevantes;
     }
 
     public LocalDateTime getFechaRegistro() {

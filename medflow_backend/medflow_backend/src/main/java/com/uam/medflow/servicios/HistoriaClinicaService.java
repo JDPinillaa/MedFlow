@@ -72,7 +72,9 @@ public class HistoriaClinicaService {
         historiaClinica.setCita(cita);
         historiaClinica.setPaciente(cita.getPaciente());
         historiaClinica.setDoctor(cita.getDoctor());
+        historiaClinica.setDiagnostico(request.diagnostico().trim());
         historiaClinica.setObservaciones(request.observaciones().trim());
+        historiaClinica.setDatosRelevantes(request.datosRelevantes().trim());
         historiaClinica.setFechaRegistro(LocalDateTime.now());
 
         cita.setEstado(ESTADO_COMPLETADA);
@@ -87,7 +89,9 @@ public class HistoriaClinicaService {
             throw new ConflictoException("No se puede cambiar la cita asociada a una historia clinica");
         }
 
+        historiaClinica.setDiagnostico(request.diagnostico().trim());
         historiaClinica.setObservaciones(request.observaciones().trim());
+        historiaClinica.setDatosRelevantes(request.datosRelevantes().trim());
 
         return toResponse(historiaClinicaRepository.save(historiaClinica));
     }
@@ -103,7 +107,9 @@ public class HistoriaClinicaService {
         return new HistoriaClinicaResponse(
                 historiaClinica.getId(),
                 historiaClinica.getFechaRegistro(),
+                historiaClinica.getDiagnostico(),
                 historiaClinica.getObservaciones(),
+                historiaClinica.getDatosRelevantes(),
                 cita.getId(),
                 cita.getFechaHora(),
                 cita.getEstado(),

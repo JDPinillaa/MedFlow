@@ -5,7 +5,9 @@ import java.time.LocalDateTime;
 public record HistoriaClinicaResponse(
         Integer id,
         LocalDateTime fechaRegistro,
+        String diagnostico,
         String observaciones,
+        String datosRelevantes,
         Integer citaId,
         LocalDateTime citaFechaHora,
         String citaEstado,

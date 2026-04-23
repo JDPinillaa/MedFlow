@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: MedFlow Backend API
-  version: 1.1.0
+  version: 1.2.0
   description: |
     Contrato OpenAPI del estado actual del backend de MedFlow.
 
@@ -13,7 +13,8 @@ info:
     - Ya existen CRUDs funcionales para pacientes, doctores y procedimientos.
     - Ya existe gestion de citas con validaciones basicas de agenda.
     - Ya existe registro y consulta de historias clinicas asociadas a citas.
-    - Autenticacion, facturacion y calendario siguen pendientes de implementacion.
+    - Ya existe calendario medico con integracion de citas y eventos propios del doctor.
+    - Autenticacion y facturacion siguen pendientes de implementacion.
 
     Reglas de negocio ya activas:
     - Pacientes no pueden repetir documento ni email.
@@ -26,6 +27,11 @@ info:
     - Una cita solo puede tener una historia clinica.
     - No se permite crear historia clinica para una cita cancelada.
     - Al crear una historia clinica, la cita asociada queda marcada como COMPLETADA.
+    - Los registros clinicos requieren diagnostico, observaciones y datos relevantes.
+    - El calendario medico muestra citas y eventos en una misma respuesta.
+    - El fin de una cita en calendario se calcula con fechaHora + duracionMinutos del procedimiento.
+    - Los eventos de calendario deben tener fin posterior al inicio.
+    - Un evento de calendario no puede cruzarse con citas activas ni con otros eventos del mismo doctor.
 servers:
   - url: http://localhost:8080
     description: Servidor local de desarrollo
@@ -40,7 +46,9 @@ tags:
   - name: Citas
     description: Agendamiento y seguimiento operativo de citas.
   - name: Historias Clinicas
-    description: Registro y consulta de observaciones clinicas asociadas a citas.
+    description: Registro y consulta de diagnosticos, observaciones y datos relevantes asociados a citas.
+  - name: Calendario Medico
+    description: Vista unificada de citas y eventos propios del calendario del doctor.
 
 paths:
   /api/pacientes:
@@ -488,10 +496,11 @@ paths:
                   $ref: '#/components/schemas/HistoriaClinicaResponse'
     post:
       tags: [Historias Clinicas]
-      summary: Crear historia clinica
+      summary: Agregar registro a historia clinica
       description: |
-        Crea una historia clinica asociada a una cita existente.
+        Crea un registro de historia clinica asociado a una cita existente.
         El paciente y el doctor se toman desde la cita, no se envian manualmente.
+        El registro captura diagnostico, observaciones y datos relevantes.
         Si la cita esta cancelada o ya tiene historia clinica, se devuelve conflicto.
       requestBody:
         required: true
@@ -503,7 +512,9 @@ paths:
               ejemplo:
                 value:
                   citaId: 1
+                  diagnostico: Faringitis aguda
                   observaciones: Paciente refiere dolor de garganta de dos dias de evolucion. Se indican cuidados generales y control si empeora.
+                  datosRelevantes: Sin alergias reportadas. Signos vitales dentro de rangos normales.
       responses:
         '201':
           description: Historia clinica creada correctamente.
@@ -535,9 +546,9 @@ paths:
           $ref: '#/components/responses/NotFound'
     put:
       tags: [Historias Clinicas]
-      summary: Actualizar observaciones de historia clinica
+      summary: Actualizar registro de historia clinica
       description: |
-        Actualiza las observaciones manteniendo la misma cita asociada.
+        Actualiza diagnostico, observaciones y datos relevantes manteniendo la misma cita asociada.
         No permite cambiar la cita de una historia clinica ya creada.
       parameters:
         - $ref: '#/components/parameters/IdPath'
@@ -558,6 +569,88 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  /api/calendario:
+    get:
+      tags: [Calendario Medico]
+      summary: Ver calendario medico
+      description: |
+        Devuelve una vista unificada del calendario de un doctor.
+        Integra citas existentes y eventos creados manualmente.
+        Las citas se devuelven como tipo `CITA`; los eventos manuales como tipo `EVENTO`.
+      parameters:
+        - name: doctorId
+          in: query
+          required: true
+          description: Identificador del doctor propietario del calendario.
+          schema:
+            type: integer
+            format: int32
+        - name: desde
+          in: query
+          required: true
+          description: Inicio del rango en formato ISO date-time.
+          schema:
+            type: string
+            format: date-time
+          example: '2026-04-30T00:00:00'
+        - name: hasta
+          in: query
+          required: true
+          description: Fin del rango en formato ISO date-time.
+          schema:
+            type: string
+            format: date-time
+          example: '2026-05-01T00:00:00'
+      responses:
+        '200':
+          description: Elementos del calendario.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarEventResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/calendario/eventos:
+    post:
+      tags: [Calendario Medico]
+      summary: Crear evento de calendario
+      description: |
+        Crea un evento manual en el calendario del doctor.
+        Este endpoint no crea citas; solo eventos personalizados como reuniones, bloqueos o actividades administrativas.
+        El sistema evita cruces con citas activas y con otros eventos del mismo doctor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarEventRequest'
+            examples:
+              ejemplo:
+                value:
+                  doctorId: 1
+                  titulo: Reunion administrativa
+                  descripcion: Revision de agenda semanal
+                  inicio: '2026-04-30T14:00:00'
+                  fin: '2026-04-30T15:00:00'
+      responses:
+        '201':
+          description: Evento creado correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarEventResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '409':
           $ref: '#/components/responses/Conflict'
 
@@ -860,16 +953,26 @@ components:
       type: object
       required:
         - citaId
+        - diagnostico
         - observaciones
+        - datosRelevantes
       properties:
         citaId:
           type: integer
           format: int32
           example: 1
+        diagnostico:
+          type: string
+          maxLength: 5000
+          example: Faringitis aguda
         observaciones:
           type: string
           maxLength: 5000
           example: Paciente refiere dolor de garganta de dos dias de evolucion. Se indican cuidados generales y control si empeora.
+        datosRelevantes:
+          type: string
+          maxLength: 5000
+          example: Sin alergias reportadas. Signos vitales dentro de rangos normales.
 
     HistoriaClinicaResponse:
       type: object
@@ -882,9 +985,15 @@ components:
           type: string
           format: date-time
           example: '2026-04-22T21:10:00'
+        diagnostico:
+          type: string
+          example: Faringitis aguda
         observaciones:
           type: string
           example: Paciente refiere dolor de garganta de dos dias de evolucion. Se indican cuidados generales y control si empeora.
+        datosRelevantes:
+          type: string
+          example: Sin alergias reportadas. Signos vitales dentro de rangos normales.
         citaId:
           type: integer
           format: int32
@@ -919,6 +1028,103 @@ components:
           example: 1
         procedimientoNombre:
           type: string
+          example: Consulta General
+
+    CalendarEventRequest:
+      type: object
+      required:
+        - doctorId
+        - titulo
+        - inicio
+        - fin
+      properties:
+        doctorId:
+          type: integer
+          format: int32
+          example: 1
+        titulo:
+          type: string
+          maxLength: 150
+          example: Reunion administrativa
+        descripcion:
+          type: string
+          maxLength: 5000
+          example: Revision de agenda semanal
+        inicio:
+          type: string
+          format: date-time
+          example: '2026-04-30T14:00:00'
+        fin:
+          type: string
+          format: date-time
+          example: '2026-04-30T15:00:00'
+
+    CalendarEventResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+          description: Id del elemento en su tabla de origen.
+          example: 3
+        tipo:
+          type: string
+          enum: [CITA, EVENTO]
+          example: CITA
+        titulo:
+          type: string
+          example: Consulta General - Ana Perez
+        descripcion:
+          type: string
+          nullable: true
+          example: Revision de agenda semanal
+        inicio:
+          type: string
+          format: date-time
+          example: '2026-04-30T10:00:00'
+        fin:
+          type: string
+          format: date-time
+          example: '2026-04-30T10:30:00'
+        estado:
+          type: string
+          nullable: true
+          description: Estado de la cita. Para eventos manuales se devuelve null.
+          example: PROGRAMADA
+        doctorId:
+          type: integer
+          format: int32
+          example: 1
+        doctorNombre:
+          type: string
+          example: Dra. Laura Gomez
+        pacienteId:
+          type: integer
+          format: int32
+          nullable: true
+          example: 1
+        pacienteNombre:
+          type: string
+          nullable: true
+          example: Ana Perez
+        citaId:
+          type: integer
+          format: int32
+          nullable: true
+          example: 3
+        eventoId:
+          type: integer
+          format: int32
+          nullable: true
+          example: 1
+        procedimientoId:
+          type: integer
+          format: int32
+          nullable: true
+          example: 1
+        procedimientoNombre:
+          type: string
+          nullable: true
           example: Consulta General
 
     ApiErrorResponse:
