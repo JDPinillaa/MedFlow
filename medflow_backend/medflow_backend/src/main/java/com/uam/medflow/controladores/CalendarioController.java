@@ -32,47 +32,4 @@ public class CalendarioController {
     public ResponseEntity<CalendarEventResponse> crearEvento(@Valid @RequestBody CalendarEventRequest request) {
         return new ResponseEntity<>(calendarioService.crearEvento(request), HttpStatus.CREATED);
     }
-
-
-
-    public List<CalendarEventResponse> verCalendario(Integer doctorId, LocalDateTime desde, LocalDateTime hasta) {
-        List<Cita> citas = citaRepository.buscarPorDoctorYRango(doctorId, desde, hasta);
-
-        List<CalendarEventResponse> respuesta = citas.stream().map(cita -> new CalendarEventResponse(
-                cita.getId(),
-                "CITA",
-                "Cita: " + cita.getPaciente().getNombre(),
-                "Procedimiento: " + cita.getProcedimiento().getNombre(),
-                cita.getFechaHora(),
-                cita.getFechaHora().plusMinutes(30),
-                cita.getEstado().toString(),
-                cita.getDoctor().getId(),
-                cita.getDoctor().getNombre(),
-                cita.getPaciente().getId(),
-                cita.getPaciente().getNombre(),
-                cita.getId(),
-                null,
-                cita.getProcedimiento().getId(),
-                cita.getProcedimiento().getNombre()
-        )).collect(Collectors.toCollection(ArrayList::new));
-
-        respuesta.add(new CalendarEventResponse(
-                999,
-                "EVENTO",
-                "Reunión Staff",
-                "Reunión administrativa",
-                desde.plusHours(2),
-                desde.plusHours(3),
-                "PROGRAMADO",
-                doctorId,
-                "Sistema",
-                null, null, null, 1, null, null
-        ));
-
-        return respuesta;
-    }
-
-    public CalendarEventResponse crearEvento(CalendarEventRequest request) {
-        return null;
-    }
 }

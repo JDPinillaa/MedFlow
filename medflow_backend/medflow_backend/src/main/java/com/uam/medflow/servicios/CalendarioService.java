@@ -1,118 +1,123 @@
-package com.uam.medflow.servicios;
+package com.uam.medflow.repositorios;
 
-import com.uam.medflow.dto.calendario.CalendarEventRequest;
-import com.uam.medflow.dto.calendario.CalendarEventResponse;
-import com.uam.medflow.entidades.CalendarEvent;
 import com.uam.medflow.entidades.Cita;
-import com.uam.medflow.entidades.Doctor;
-import com.uam.medflow.excepciones.ConflictoException;
-import com.uam.medflow.repositorios.CalendarEventRepository;
-import com.uam.medflow.repositorios.CitaRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.Optional;
 
-@Service
-@Transactional
-public class CalendarioService {
+@Repository
+public interface CitaRepository extends JpaRepository<Cita, Integer> {
 
-    private final CalendarEventRepository calendarEventRepository;
-    private final CitaRepository citaRepository;
-    private final DoctorService doctorService;
+    @Query("""
+            select c
+            from Cita c
+            join fetch c.paciente
+            join fetch c.doctor
+            join fetch c.procedimiento
+            where c.id = :id
+            """)
+    Optional<Cita> findConRelacionesById(@Param("id") Integer id);
 
-    public CalendarioService(CalendarEventRepository calendarEventRepository, CitaRepository citaRepository, DoctorService doctorService) {
-        this.calendarEventRepository = calendarEventRepository;
-        this.citaRepository = citaRepository;
-        this.doctorService = doctorService;
-    }
+    @Query("""
+            select c
+            from Cita c
+            join fetch c.paciente
+            join fetch c.doctor
+            join fetch c.procedimiento
+            order by c.fechaHora asc
+            """)
+    List<Cita> findAllConRelaciones();
 
-    @Transactional(readOnly = true)
-    public List<CalendarEventResponse> verCalendarioAdmin(LocalDateTime desde, LocalDateTime hasta) {
-        validarRango(desde, hasta);
+    @Query("""
+            select c
+            from Cita c
+            join fetch c.paciente
+            join fetch c.doctor
+            join fetch c.procedimiento
+            where (:fecha is null or function('date', c.fechaHora) = :fecha)
+              and (:pacienteId is null or c.paciente.id = :pacienteId)
+            order by c.fechaHora asc
+            """)
+    List<Cita> buscarPorFiltros(
+            @Param("fecha") LocalDate fecha,
+            @Param("pacienteId") Integer pacienteId);
 
-        List<CalendarEventResponse> citas = citaRepository.buscarPorRango(desde, hasta)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+    @Query("""
+            select c
+            from Cita c
+            join fetch c.paciente
+            join fetch c.doctor
+            join fetch c.procedimiento
+            where c.fechaHora >= :desde
+              and c.fechaHora < :hasta
+            order by c.fechaHora asc
+            """)
+    List<Cita> buscarPorRango(
+            @Param("desde") LocalDateTime desde,
+            @Param("hasta") LocalDateTime hasta);
 
-        List<CalendarEventResponse> eventos = calendarEventRepository.buscarPorRango(desde, hasta)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+    @Query("""
+            select c
+            from Cita c
+            join fetch c.paciente
+            join fetch c.doctor
+            join fetch c.procedimiento
+            where c.doctor.id = :doctorId
+              and c.fechaHora >= :desde
+              and c.fechaHora < :hasta
+            order by c.fechaHora asc
+            """)
+    List<Cita> buscarPorDoctorYRango(
+            @Param("doctorId") Integer doctorId,
+            @Param("desde") LocalDateTime desde,
+            @Param("hasta") LocalDateTime hasta);
 
-        return Stream.concat(citas.stream(), eventos.stream())
-                .sorted(Comparator.comparing(CalendarEventResponse::inicio))
-                .toList();
-    }
+    @Query("""
+            select c
+            from Cita c
+            join fetch c.paciente
+            join fetch c.doctor
+            join fetch c.procedimiento
+            where c.doctor.id = :doctorId
+              and c.fechaHora >= :desdeBusqueda
+              and c.fechaHora < :fin
+              and upper(c.estado) <> 'CANCELADA'
+            order by c.fechaHora asc
+            """)
+    List<Cita> buscarCitasActivasParaCruceCalendario(
+            @Param("doctorId") Integer doctorId,
+            @Param("desdeBusqueda") LocalDateTime desdeBusqueda,
+            @Param("fin") LocalDateTime fin);
 
-    public CalendarEventResponse crearEvento(CalendarEventRequest request) {
-        validarRango(request.inicio(), request.fin());
+    @Query("""
+            select count(c) > 0
+            from Cita c
+            where c.doctor.id = :doctorId
+              and c.fechaHora = :fechaHora
+              and upper(c.estado) <> 'CANCELADA'
+              and (:citaId is null or c.id <> :citaId)
+            """)
+    boolean existeCruceDoctor(
+            @Param("doctorId") Integer doctorId,
+            @Param("fechaHora") LocalDateTime fechaHora,
+            @Param("citaId") Integer citaId);
 
-        if (!request.ignorarConflicto()) {
-            boolean hayConflicto = calendarEventRepository.existeCruceEvento(request.doctorId(), request.inicio(), request.fin());
-            if (hayConflicto) {
-                throw new ConflictoException("Existe un conflicto de horario");
-            }
-        }
-
-        Doctor doctor = doctorService.buscarEntidad(request.doctorId());
-
-        CalendarEvent evento = new CalendarEvent();
-        evento.setTitulo(request.titulo());
-        evento.setDescripcion(request.descripcion());
-        evento.setInicio(request.inicio());
-        evento.setFin(request.fin());
-        evento.setDoctor(doctor);
-
-        return mapToResponse(calendarEventRepository.save(evento));
-    }
-
-    private void validarRango(LocalDateTime inicio, LocalDateTime fin) {
-        if (fin.isBefore(inicio) || fin.isEqual(inicio)) {
-            throw new ConflictoException("La fecha de fin debe ser posterior a la de inicio");
-        }
-    }
-
-    private CalendarEventResponse mapToResponse(Cita cita) {
-        return new CalendarEventResponse(
-                cita.getId(),
-                "CITA",
-                "Cita: " + cita.getPaciente().getNombreCompleto(),
-                cita.getProcedimiento().getNombre(),
-                cita.getFechaHora(),
-                cita.getFechaHora().plusMinutes(cita.getProcedimiento().getDuracionMinutos()),
-                cita.getEstado(),
-                cita.getDoctor().getId(),
-                cita.getDoctor().getNombreCompleto(),
-                cita.getPaciente().getId(),
-                cita.getPaciente().getNombreCompleto(),
-                cita.getId(),
-                null,
-                cita.getProcedimiento().getId(),
-                cita.getProcedimiento().getNombre()
-        );
-    }
-
-    private CalendarEventResponse mapToResponse(CalendarEvent event) {
-        return new CalendarEventResponse(
-                event.getId(),
-                "EVENTO",
-                event.getTitulo(),
-                event.getDescripcion(),
-                event.getInicio(),
-                event.getFin(),
-                "PROGRAMADO",
-                event.getDoctor().getId(),
-                event.getDoctor().getNombreCompleto(),
-                null,
-                null,
-                null,
-                event.getId(),
-                null,
-                null
-        );
-    }
+    @Query("""
+            select count(c) > 0
+            from Cita c
+            where c.paciente.id = :pacienteId
+              and c.fechaHora = :fechaHora
+              and upper(c.estado) <> 'CANCELADA'
+              and (:citaId is null or c.id <> :citaId)
+            """)
+    boolean existeCrucePaciente(
+            @Param("pacienteId") Integer pacienteId,
+            @Param("fechaHora") LocalDateTime fechaHora,
+            @Param("citaId") Integer citaId);
 }
