@@ -41,8 +41,12 @@ public class CitaService {
     }
 
     @Transactional(readOnly = true)
-    public List<CitaResponse> listar(LocalDate fecha) {
-        return citaRepository.buscarPorFecha(fecha)
+    public List<CitaResponse> listar(LocalDate fecha, Integer pacienteId) {
+        if (pacienteId != null) {
+            pacienteService.buscarEntidad(pacienteId);
+        }
+
+        return citaRepository.buscarPorFiltros(fecha, pacienteId)
                 .stream()
                 .map(this::toResponse)
                 .toList();

@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -12,20 +14,15 @@ import java.util.Optional;
 @Repository
 public interface CitaRepository extends JpaRepository<Cita, Integer> {
 
-    @Query("SELECT c FROM Cita c JOIN FETCH c.paciente JOIN FETCH c.doctor JOIN FETCH c.procedimiento WHERE c.fechaHora BETWEEN :desde AND :hasta")
-    List<Cita> buscarPorRango(@Param("desde") LocalDateTime desde, @Param("hasta") LocalDateTime hasta);
-
-    @Query("SELECT c FROM Cita c JOIN FETCH c.paciente JOIN FETCH c.doctor JOIN FETCH c.procedimiento WHERE c.doctor.id = :doctorId AND c.fechaHora BETWEEN :desde AND :hasta")
-    List<Cita> buscarPorDoctorYRango(@Param("doctorId") Integer doctorId, @Param("desde") LocalDateTime desde, @Param("hasta") LocalDateTime hasta);
-
-    @Query("SELECT c FROM Cita c JOIN FETCH c.paciente JOIN FETCH c.doctor JOIN FETCH c.procedimiento WHERE c.id = :id")
+    @Query("""
+            select c
+            from Cita c
+            join fetch c.paciente
+            join fetch c.doctor
+            join fetch c.procedimiento
+            where c.id = :id
+            """)
     Optional<Cita> findConRelacionesById(@Param("id") Integer id);
-
-    @Query("SELECT COUNT(c) > 0 FROM Cita c WHERE c.doctor.id = :doctorId AND c.fechaHora = :fechaHora AND UPPER(c.estado) <> 'CANCELADA' AND (:citaId IS NULL OR c.id <> :citaId)")
-    boolean existeCruceDoctor(@Param("doctorId") Integer doctorId, @Param("fechaHora") LocalDateTime fechaHora, @Param("citaId") Integer citaId);
-
-    @Query("SELECT COUNT(c) > 0 FROM Cita c WHERE c.paciente.id = :pacienteId AND c.fechaHora = :fechaHora AND UPPER(c.estado) <> 'CANCELADA' AND (:citaId IS NULL OR c.id <> :citaId)")
-    boolean existeCrucePaciente(@Param("pacienteId") Integer pacienteId, @Param("fechaHora") LocalDateTime fechaHora, @Param("citaId") Integer citaId);
 
     @Query("""
             select c
@@ -37,16 +34,10 @@ public interface CitaRepository extends JpaRepository<Cita, Integer> {
             """)
     List<Cita> findAllConRelaciones();
 
-    @Query("""
-            select c
-            from Cita c
-            join fetch c.paciente
-            join fetch c.doctor
-            join fetch c.procedimiento
-            where c.id = :id
-            """)
-    java.util.Optional<Cita> findConRelacionesById(@Param("id") Integer id);
-
+    /**
+     * Lista citas filtrando opcionalmente por fecha y/o paciente.
+     * Si ambos parámetros son null, retorna todas las citas.
+     */
     @Query("""
             select c
             from Cita c
@@ -54,9 +45,12 @@ public interface CitaRepository extends JpaRepository<Cita, Integer> {
             join fetch c.doctor
             join fetch c.procedimiento
             where (:fecha is null or function('date', c.fechaHora) = :fecha)
+              and (:pacienteId is null or c.paciente.id = :pacienteId)
             order by c.fechaHora asc
             """)
-    List<Cita> buscarPorFecha(@Param("fecha") LocalDate fecha);
+    List<Cita> buscarPorFiltros(
+            @Param("fecha") LocalDate fecha,
+            @Param("pacienteId") Integer pacienteId);
 
     @Query("""
             select c

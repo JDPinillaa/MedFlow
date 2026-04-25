@@ -34,8 +34,9 @@ public class CitaController {
 
     @GetMapping
     public List<CitaResponse> listar(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
-        return citaService.listar(fecha);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
+            @RequestParam(required = false) Integer pacienteId) {
+        return citaService.listar(fecha, pacienteId);
     }
 
     @PostMapping
