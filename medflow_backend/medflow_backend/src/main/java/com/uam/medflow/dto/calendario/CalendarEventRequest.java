@@ -18,11 +18,11 @@ public record CalendarEventRequest(
         String descripcion,
 
         @NotNull(message = "La fecha y hora de inicio son obligatorias")
-        @Future(message = "El evento debe iniciar en una fecha futura")
+        @FutureOrPresent(message = "El evento debe iniciar en una fecha futura")
         LocalDateTime inicio,
 
         @NotNull(message = "La fecha y hora de fin son obligatorias")
-        @Future(message = "El evento debe finalizar en una fecha futura")
+        @FutureOrPresent(message = "El evento debe finalizar en una fecha futura")
         LocalDateTime fin,
 
         boolean ignorarConflicto

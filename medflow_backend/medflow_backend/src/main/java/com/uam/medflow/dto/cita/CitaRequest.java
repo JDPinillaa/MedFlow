@@ -17,7 +17,7 @@ public record CitaRequest(
         Integer procedimientoId,
 
         @NotNull(message = "La fecha y hora son obligatorias")
-        @Future(message = "La cita debe programarse en una fecha futura")
+        @FutureOrPresent(message = "La cita debe programarse en una fecha futura")
         LocalDateTime fechaHora,
 
         @Size(max = 50, message = "El estado no puede superar los 50 caracteres")
