@@ -14,8 +14,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "calendar_events")
-public class CalendarEvent {
+@Table(name = "eventos_calendario")
+public class EventoCalendario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,7 +38,7 @@ public class CalendarEvent {
     @Column(nullable = false)
     private LocalDateTime fin;
 
-    public CalendarEvent() {
+    public EventoCalendario() {
     }
 
     public Integer getId() {

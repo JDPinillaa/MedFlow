@@ -19,22 +19,22 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.uam.medflow.dto.calendario.CalendarEventRequest;
-import com.uam.medflow.dto.calendario.CalendarEventResponse;
-import com.uam.medflow.entidades.CalendarEvent;
+import com.uam.medflow.dto.calendario.EventoCalendarioRequest;
+import com.uam.medflow.dto.calendario.EventoCalendarioResponse;
 import com.uam.medflow.entidades.Cita;
 import com.uam.medflow.entidades.Doctor;
+import com.uam.medflow.entidades.EventoCalendario;
 import com.uam.medflow.entidades.Paciente;
 import com.uam.medflow.entidades.Procedimiento;
 import com.uam.medflow.excepciones.ConflictoException;
-import com.uam.medflow.repositorios.CalendarEventRepository;
 import com.uam.medflow.repositorios.CitaRepository;
+import com.uam.medflow.repositorios.EventoCalendarioRepository;
 
 @ExtendWith(MockitoExtension.class)
 class CalendarioServiceTest {
 
     @Mock
-    private CalendarEventRepository calendarEventRepository;
+    private EventoCalendarioRepository eventoCalendarioRepository;
 
     @Mock
     private CitaRepository citaRepository;
@@ -50,15 +50,15 @@ class CalendarioServiceTest {
         LocalDateTime desde = LocalDateTime.of(2026, 5, 10, 0, 0);
         LocalDateTime hasta = LocalDateTime.of(2026, 5, 11, 0, 0);
         Cita cita = citaBase(LocalDateTime.of(2026, 5, 10, 10, 0), 45);
-        CalendarEvent evento = eventoBase(
+        EventoCalendario evento = eventoBase(
                 LocalDateTime.of(2026, 5, 10, 8, 0),
                 LocalDateTime.of(2026, 5, 10, 9, 0));
 
         when(doctorService.buscarEntidad(1)).thenReturn(doctorBase());
         when(citaRepository.buscarPorDoctorYRango(1, desde, hasta)).thenReturn(List.of(cita));
-        when(calendarEventRepository.buscarPorDoctorYRango(1, desde, hasta)).thenReturn(List.of(evento));
+        when(eventoCalendarioRepository.buscarPorDoctorYRango(1, desde, hasta)).thenReturn(List.of(evento));
 
-        List<CalendarEventResponse> resultado = calendarioService.verCalendario(1, desde, hasta);
+        List<EventoCalendarioResponse> resultado = calendarioService.verCalendario(1, desde, hasta);
 
         assertEquals(2, resultado.size());
         assertEquals("EVENTO", resultado.get(0).tipo());
@@ -73,7 +73,7 @@ class CalendarioServiceTest {
     void crearEventoGuardaEventoConDatosNormalizados() {
         LocalDateTime inicio = LocalDateTime.of(2026, 5, 10, 14, 0);
         LocalDateTime fin = LocalDateTime.of(2026, 5, 10, 15, 0);
-        CalendarEventRequest request = new CalendarEventRequest(
+        EventoCalendarioRequest request = new EventoCalendarioRequest(
                 1,
                 "  Reunion administrativa  ",
                 "  Revision de agenda semanal  ",
@@ -81,18 +81,18 @@ class CalendarioServiceTest {
                 fin);
 
         when(doctorService.buscarEntidad(1)).thenReturn(doctorBase());
-        when(calendarEventRepository.existeCruceEvento(1, inicio, fin)).thenReturn(false);
+        when(eventoCalendarioRepository.existeCruceEvento(1, inicio, fin)).thenReturn(false);
         when(citaRepository.buscarCitasActivasParaCruceCalendario(1, inicio.minusDays(1), fin)).thenReturn(List.of());
-        when(calendarEventRepository.save(any(CalendarEvent.class))).thenAnswer(invocation -> {
-            CalendarEvent event = invocation.getArgument(0);
-            event.setId(7);
-            return event;
+        when(eventoCalendarioRepository.save(any(EventoCalendario.class))).thenAnswer(invocation -> {
+            EventoCalendario evento = invocation.getArgument(0);
+            evento.setId(7);
+            return evento;
         });
 
-        CalendarEventResponse resultado = calendarioService.crearEvento(request);
+        EventoCalendarioResponse resultado = calendarioService.crearEvento(request);
 
-        ArgumentCaptor<CalendarEvent> captor = ArgumentCaptor.forClass(CalendarEvent.class);
-        verify(calendarEventRepository).save(captor.capture());
+        ArgumentCaptor<EventoCalendario> captor = ArgumentCaptor.forClass(EventoCalendario.class);
+        verify(eventoCalendarioRepository).save(captor.capture());
         assertEquals("Reunion administrativa", captor.getValue().getTitulo());
         assertEquals("Revision de agenda semanal", captor.getValue().getDescripcion());
         assertEquals(7, resultado.eventoId());
@@ -103,7 +103,7 @@ class CalendarioServiceTest {
     @Test
     void crearEventoRechazaFinAnteriorOIgualAlInicio() {
         LocalDateTime inicio = LocalDateTime.of(2026, 5, 10, 15, 0);
-        CalendarEventRequest request = new CalendarEventRequest(
+        EventoCalendarioRequest request = new EventoCalendarioRequest(
                 1,
                 "Bloqueo agenda",
                 null,
@@ -115,17 +115,17 @@ class CalendarioServiceTest {
                 () -> calendarioService.crearEvento(request));
 
         assertEquals("La fecha y hora de fin debe ser posterior al inicio", exception.getMessage());
-        verifyNoInteractions(doctorService, calendarEventRepository, citaRepository);
+        verifyNoInteractions(doctorService, eventoCalendarioRepository, citaRepository);
     }
 
     @Test
     void crearEventoRechazaCruceConOtroEvento() {
         LocalDateTime inicio = LocalDateTime.of(2026, 5, 10, 14, 0);
         LocalDateTime fin = LocalDateTime.of(2026, 5, 10, 15, 0);
-        CalendarEventRequest request = requestEvento(inicio, fin);
+        EventoCalendarioRequest request = requestEvento(inicio, fin);
 
         when(doctorService.buscarEntidad(1)).thenReturn(doctorBase());
-        when(calendarEventRepository.existeCruceEvento(1, inicio, fin)).thenReturn(true);
+        when(eventoCalendarioRepository.existeCruceEvento(1, inicio, fin)).thenReturn(true);
 
         ConflictoException exception = assertThrows(
                 ConflictoException.class,
@@ -133,18 +133,18 @@ class CalendarioServiceTest {
 
         assertEquals("El doctor ya tiene un evento programado en ese rango de tiempo", exception.getMessage());
         verify(citaRepository, never()).buscarCitasActivasParaCruceCalendario(any(), any(), any());
-        verify(calendarEventRepository, never()).save(any(CalendarEvent.class));
+        verify(eventoCalendarioRepository, never()).save(any(EventoCalendario.class));
     }
 
     @Test
     void crearEventoRechazaCruceConCitaActiva() {
         LocalDateTime inicio = LocalDateTime.of(2026, 5, 10, 14, 0);
         LocalDateTime fin = LocalDateTime.of(2026, 5, 10, 15, 0);
-        CalendarEventRequest request = requestEvento(inicio, fin);
+        EventoCalendarioRequest request = requestEvento(inicio, fin);
         Cita cita = citaBase(LocalDateTime.of(2026, 5, 10, 14, 30), 30);
 
         when(doctorService.buscarEntidad(1)).thenReturn(doctorBase());
-        when(calendarEventRepository.existeCruceEvento(1, inicio, fin)).thenReturn(false);
+        when(eventoCalendarioRepository.existeCruceEvento(1, inicio, fin)).thenReturn(false);
         when(citaRepository.buscarCitasActivasParaCruceCalendario(1, inicio.minusDays(1), fin)).thenReturn(List.of(cita));
 
         ConflictoException exception = assertThrows(
@@ -152,11 +152,11 @@ class CalendarioServiceTest {
                 () -> calendarioService.crearEvento(request));
 
         assertEquals("El doctor ya tiene una cita programada en ese rango de tiempo", exception.getMessage());
-        verify(calendarEventRepository, never()).save(any(CalendarEvent.class));
+        verify(eventoCalendarioRepository, never()).save(any(EventoCalendario.class));
     }
 
-    private CalendarEventRequest requestEvento(LocalDateTime inicio, LocalDateTime fin) {
-        return new CalendarEventRequest(
+    private EventoCalendarioRequest requestEvento(LocalDateTime inicio, LocalDateTime fin) {
+        return new EventoCalendarioRequest(
                 1,
                 "Reunion administrativa",
                 "Revision de agenda semanal",
@@ -164,15 +164,15 @@ class CalendarioServiceTest {
                 fin);
     }
 
-    private CalendarEvent eventoBase(LocalDateTime inicio, LocalDateTime fin) {
-        CalendarEvent event = new CalendarEvent();
-        event.setId(5);
-        event.setDoctor(doctorBase());
-        event.setTitulo("Reunion administrativa");
-        event.setDescripcion("Revision de agenda semanal");
-        event.setInicio(inicio);
-        event.setFin(fin);
-        return event;
+    private EventoCalendario eventoBase(LocalDateTime inicio, LocalDateTime fin) {
+        EventoCalendario evento = new EventoCalendario();
+        evento.setId(5);
+        evento.setDoctor(doctorBase());
+        evento.setTitulo("Reunion administrativa");
+        evento.setDescripcion("Revision de agenda semanal");
+        evento.setInicio(inicio);
+        evento.setFin(fin);
+        return evento;
     }
 
     private Cita citaBase(LocalDateTime fechaHora, int duracionMinutos) {

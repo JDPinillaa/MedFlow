@@ -2,7 +2,7 @@ package com.uam.medflow.dto.calendario;
 
 import java.time.LocalDateTime;
 
-public record CalendarEventResponse(
+public record EventoCalendarioResponse(
         Integer id,
         String tipo,
         String titulo,

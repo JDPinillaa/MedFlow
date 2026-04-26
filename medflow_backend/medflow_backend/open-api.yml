@@ -647,7 +647,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/CalendarEventResponse'
+                  $ref: '#/components/schemas/EventoCalendarioResponse'
               examples:
                 citaYEvento:
                   value:
@@ -699,7 +699,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CalendarEventRequest'
+              $ref: '#/components/schemas/EventoCalendarioRequest'
             examples:
               ejemplo:
                 value:
@@ -714,7 +714,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CalendarEventResponse'
+                $ref: '#/components/schemas/EventoCalendarioResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
@@ -1145,7 +1145,7 @@ components:
           type: string
           example: Consulta General
 
-    CalendarEventRequest:
+    EventoCalendarioRequest:
       type: object
       required:
         - doctorId
@@ -1174,7 +1174,7 @@ components:
           format: date-time
           example: '2026-04-30T15:00:00'
 
-    CalendarEventResponse:
+    EventoCalendarioResponse:
       type: object
       properties:
         id:

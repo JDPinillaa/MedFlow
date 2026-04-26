@@ -11,18 +11,18 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
 
-class CalendarEventRequestValidationTest {
+class EventoCalendarioRequestValidationTest {
 
     @Test
     void rechazaCamposObligatoriosVaciosONulos() {
-        CalendarEventRequest request = new CalendarEventRequest(
+        EventoCalendarioRequest request = new EventoCalendarioRequest(
                 null,
                 " ",
                 null,
                 null,
                 null);
 
-        Set<ConstraintViolation<CalendarEventRequest>> violations = validar(request);
+        Set<ConstraintViolation<EventoCalendarioRequest>> violations = validar(request);
 
         assertTrue(contieneMensaje(violations, "El doctor es obligatorio"));
         assertTrue(contieneMensaje(violations, "El titulo es obligatorio"));
@@ -30,14 +30,14 @@ class CalendarEventRequestValidationTest {
         assertTrue(contieneMensaje(violations, "La fecha y hora de fin son obligatorias"));
     }
 
-    private Set<ConstraintViolation<CalendarEventRequest>> validar(CalendarEventRequest request) {
+    private Set<ConstraintViolation<EventoCalendarioRequest>> validar(EventoCalendarioRequest request) {
         try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
             Validator validator = factory.getValidator();
             return validator.validate(request);
         }
     }
 
-    private boolean contieneMensaje(Set<ConstraintViolation<CalendarEventRequest>> violations, String mensaje) {
+    private boolean contieneMensaje(Set<ConstraintViolation<EventoCalendarioRequest>> violations, String mensaje) {
         return violations.stream()
                 .anyMatch(violation -> mensaje.equals(violation.getMessage()));
     }

@@ -26,22 +26,12 @@ public class UsuarioSecurityService implements UserDetailsService {
         return User.builder()
                 .username(usuario.getEmail())
                 .password(usuario.getPassword())
-                .authorities(new SimpleGrantedAuthority(normalizarRol(usuario.getRol())))
+                .authorities(new SimpleGrantedAuthority("ROLE_" + usuario.getRol().name()))
                 .build();
     }
 
     public Usuario obtenerPorEmail(String email) {
         return usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado con email " + email));
-    }
-
-    private String normalizarRol(String rol) {
-        String rolNormalizado = rol == null ? "USER" : rol.trim().toUpperCase();
-
-        if (rolNormalizado.startsWith("ROLE_")) {
-            return rolNormalizado;
-        }
-
-        return "ROLE_" + rolNormalizado;
     }
 }

@@ -2,6 +2,8 @@ package com.uam.medflow.entidades;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -21,8 +23,9 @@ public class Usuario {
     @Column(nullable = false, length = 255)
     private String password;
 
-    @Column(nullable = false, length = 50)
-    private String rol;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20, columnDefinition = "ENUM('ADMIN','MEDICO','PACIENTE')")
+    private RolUsuario rol;
 
     public Usuario() {
     }
@@ -51,11 +54,11 @@ public class Usuario {
         this.password = password;
     }
 
-    public String getRol() {
+    public RolUsuario getRol() {
         return rol;
     }
 
-    public void setRol(String rol) {
+    public void setRol(RolUsuario rol) {
         this.rol = rol;
     }
 }
