@@ -111,6 +111,83 @@ const FALLBACK_CALENDAR_EVENTS = [
   },
 ]
 
+const FALLBACK_CLINICAL_RECORDS = {
+  'patient-1': [
+    {
+      id: 'history-fallback-1',
+      fechaRegistro: '2026-05-10T09:30:00',
+      diagnostico: 'Faringitis aguda',
+      observaciones:
+        'Paciente refiere odinofagia de dos dias de evolucion, sin fiebre persistente. Se indica manejo sintomatico, hidratacion y signos de alarma.',
+      datosRelevantes:
+        'Sin alergias reportadas. Presion arterial 118/76 mmHg, frecuencia cardiaca 74 lpm, saturacion 98%.',
+      citaId: 'fallback-1',
+      citaFechaHora: '2026-05-10T09:00:00',
+      citaEstado: 'COMPLETADA',
+      doctorId: 'doctor-1',
+      doctorNombre: 'Dra. Laura Gomez',
+      doctorEspecialidad: 'Medicina General',
+      procedimientoId: 'procedure-1',
+      procedimientoNombre: 'Consulta General',
+    },
+    {
+      id: 'history-fallback-2',
+      fechaRegistro: '2026-03-18T10:20:00',
+      diagnostico: 'Control preventivo anual',
+      observaciones:
+        'Revision general sin hallazgos de alarma. Se refuerzan habitos de sueno, actividad fisica regular y tamizajes segun edad.',
+      datosRelevantes:
+        'Antecedentes familiares no contributivos. Peso estable y examen fisico dentro de parametros esperados.',
+      citaId: 'fallback-history-appointment-2',
+      citaFechaHora: '2026-03-18T10:00:00',
+      citaEstado: 'COMPLETADA',
+      doctorId: 'doctor-1',
+      doctorNombre: 'Dra. Laura Gomez',
+      doctorEspecialidad: 'Medicina General',
+      procedimientoId: 'procedure-1',
+      procedimientoNombre: 'Consulta General',
+    },
+  ],
+  'patient-2': [
+    {
+      id: 'history-fallback-3',
+      fechaRegistro: '2026-04-22T11:40:00',
+      diagnostico: 'Seguimiento de presion arterial',
+      observaciones:
+        'Lecturas domiciliarias con tendencia a la estabilidad. Se mantiene vigilancia mensual y registro de sintomas asociados.',
+      datosRelevantes:
+        'Sin alergias medicamentosas conocidas. Se recomienda reducir consumo de sodio y aumentar caminatas semanales.',
+      citaId: 'fallback-history-appointment-3',
+      citaFechaHora: '2026-04-22T11:00:00',
+      citaEstado: 'COMPLETADA',
+      doctorId: 'doctor-1',
+      doctorNombre: 'Dra. Laura Gomez',
+      doctorEspecialidad: 'Medicina General',
+      procedimientoId: 'procedure-1',
+      procedimientoNombre: 'Consulta General',
+    },
+  ],
+  'patient-3': [
+    {
+      id: 'history-fallback-4',
+      fechaRegistro: '2026-04-08T15:25:00',
+      diagnostico: 'Dermatitis irritativa leve',
+      observaciones:
+        'Lesiones eritematosas localizadas sin signos de infeccion. Se formula manejo topico y control en seis semanas.',
+      datosRelevantes:
+        'Antecedente de piel sensible. Evitar fragancias y registrar respuesta al tratamiento indicado.',
+      citaId: 'fallback-history-appointment-4',
+      citaFechaHora: '2026-04-08T15:00:00',
+      citaEstado: 'COMPLETADA',
+      doctorId: 'doctor-2',
+      doctorNombre: 'Dr. Andres Ruiz',
+      doctorEspecialidad: 'Dermatologia',
+      procedimientoId: 'procedure-2',
+      procedimientoNombre: 'Control Dermatologico',
+    },
+  ],
+}
+
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
   { id: 'pacientes', label: 'Pacientes', icon: UsersIcon },
@@ -440,6 +517,189 @@ function getPatientFormFromRecord(patient) {
   }
 }
 
+function getEmptyClinicalRecordForm(citaId = '') {
+  return {
+    citaId,
+    diagnostico: '',
+    observaciones: '',
+    datosRelevantes: '',
+  }
+}
+
+function buildClinicalRecordPayload(formValues) {
+  return {
+    citaId: toNumericId(formValues.citaId),
+    diagnostico: formValues.diagnostico.trim(),
+    observaciones: formValues.observaciones.trim(),
+    datosRelevantes: formValues.datosRelevantes.trim(),
+  }
+}
+
+function getClinicalRecordDate(record) {
+  return parseDate(record.fechaRegistro) ?? parseDate(record.citaFechaHora)
+}
+
+function sortClinicalRecords(records) {
+  return [...records].sort((first, second) => {
+    const firstDate = getClinicalRecordDate(first)
+    const secondDate = getClinicalRecordDate(second)
+
+    return (secondDate?.getTime() ?? 0) - (firstDate?.getTime() ?? 0)
+  })
+}
+
+function formatClinicalDate(value) {
+  const date = parseDate(value)
+
+  if (!date) {
+    return 'Sin fecha'
+  }
+
+  return new Intl.DateTimeFormat('es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+    .format(date)
+    .replace('.', '')
+    .toUpperCase()
+}
+
+function getFallbackClinicalKey(patient) {
+  const patientId = String(patient.id)
+
+  if (FALLBACK_CLINICAL_RECORDS[patientId]) {
+    return patientId
+  }
+
+  const numericId = Number(patient.id)
+
+  if (Number.isInteger(numericId) && FALLBACK_CLINICAL_RECORDS[`patient-${numericId}`]) {
+    return `patient-${numericId}`
+  }
+
+  const normalizedName = normalizeName(patient.nombreCompleto).toLowerCase()
+
+  if (normalizedName.includes('ana') || normalizedName.includes('juan diego')) {
+    return 'patient-1'
+  }
+
+  if (normalizedName.includes('carlos') || normalizedName.includes('juan david')) {
+    return 'patient-2'
+  }
+
+  if (normalizedName.includes('maria') || normalizedName.includes('santiago')) {
+    return 'patient-3'
+  }
+
+  return patientId
+}
+
+function getFallbackClinicalRecords(patient, appointments) {
+  const fallbackKey = getFallbackClinicalKey(patient)
+  const configuredRecords = FALLBACK_CLINICAL_RECORDS[fallbackKey]
+
+  if (configuredRecords) {
+    return sortClinicalRecords(
+      configuredRecords.map((record) => ({
+        ...record,
+        pacienteId: patient.id,
+        pacienteNombre: patient.nombreCompleto,
+      })),
+    )
+  }
+
+  return sortClinicalRecords(
+    appointments
+      .filter(
+        (appointment) =>
+          String(appointment.pacienteId) === String(patient.id) &&
+          appointment.estado === 'COMPLETADA',
+      )
+      .map((appointment) => ({
+        id: `history-derived-${appointment.id}`,
+        fechaRegistro: appointment.fechaHora,
+        diagnostico: appointment.procedimientoNombre ?? 'Atencion clinica',
+        observaciones: 'Registro generado desde una cita completada mientras se sincroniza la historia clinica.',
+        datosRelevantes: 'Datos clinicos pendientes por consolidar.',
+        citaId: appointment.id,
+        citaFechaHora: appointment.fechaHora,
+        citaEstado: appointment.estado,
+        pacienteId: patient.id,
+        pacienteNombre: patient.nombreCompleto,
+        doctorId: appointment.doctorId,
+        doctorNombre: appointment.doctorNombre,
+        doctorEspecialidad: 'Equipo medico',
+        procedimientoId: appointment.procedimientoId,
+        procedimientoNombre: appointment.procedimientoNombre,
+      })),
+  )
+}
+
+function getClinicalRecordKind(record) {
+  const source = `${record.procedimientoNombre ?? ''} ${record.diagnostico ?? ''}`.toLowerCase()
+
+  if (source.includes('lab') || source.includes('perfil') || source.includes('hemoglobina')) {
+    return 'lab'
+  }
+
+  if (source.includes('receta') || source.includes('medic') || source.includes('formula')) {
+    return 'medication'
+  }
+
+  if (source.includes('control') || source.includes('seguimiento')) {
+    return 'control'
+  }
+
+  return 'consultation'
+}
+
+function getClinicalKindLabel(kind) {
+  if (kind === 'lab') {
+    return 'Laboratorio'
+  }
+
+  if (kind === 'medication') {
+    return 'Medicacion'
+  }
+
+  if (kind === 'control') {
+    return 'Control'
+  }
+
+  return 'Consulta'
+}
+
+function getAvailableAppointmentsForClinicalRecord(patient, appointments, clinicalRecords) {
+  const usedAppointmentIds = new Set(clinicalRecords.map((record) => String(record.citaId)))
+
+  return appointments
+    .filter(
+      (appointment) =>
+        String(appointment.pacienteId) === String(patient.id) &&
+        appointment.estado !== 'CANCELADA' &&
+        !usedAppointmentIds.has(String(appointment.id)),
+    )
+    .sort((first, second) => parseDate(second.fechaHora) - parseDate(first.fechaHora))
+}
+
+function getNextPatientAppointment(patientId, appointments) {
+  const now = new Date()
+
+  return appointments
+    .filter((appointment) => {
+      const date = parseDate(appointment.fechaHora)
+
+      return (
+        String(appointment.pacienteId) === String(patientId) &&
+        appointment.estado !== 'CANCELADA' &&
+        date &&
+        date >= now
+      )
+    })
+    .sort((first, second) => parseDate(first.fechaHora) - parseDate(second.fechaHora))[0]
+}
+
 function appointmentMatchesSearch(appointment, searchTerm) {
   const normalizedTerm = searchTerm.trim().toLowerCase()
 
@@ -701,6 +961,11 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
   const [patientFormOpen, setPatientFormOpen] = useState(false)
   const [patientFeedback, setPatientFeedback] = useState(null)
   const [selectedPatient, setSelectedPatient] = useState(null)
+  const [patientHistories, setPatientHistories] = useState({})
+  const [clinicalRecordForm, setClinicalRecordForm] = useState(getEmptyClinicalRecordForm)
+  const [clinicalRecordFormOpen, setClinicalRecordFormOpen] = useState(false)
+  const [clinicalFeedback, setClinicalFeedback] = useState(null)
+  const [savingClinicalRecord, setSavingClinicalRecord] = useState(false)
   const [editingPatient, setEditingPatient] = useState(null)
   const [savingPatient, setSavingPatient] = useState(false)
   const [appointmentSearch, setAppointmentSearch] = useState('')
@@ -719,6 +984,7 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
   const [calendarEventForm, setCalendarEventForm] = useState(getEmptyCalendarEventForm)
   const [calendarEventFormOpen, setCalendarEventFormOpen] = useState(false)
   const [savingCalendarEvent, setSavingCalendarEvent] = useState(false)
+  const selectedPatientId = selectedPatient?.id ?? null
 
   const currentDoctor = getCurrentDoctor(data.doctors, session)
   const calendarRange = useMemo(
@@ -781,6 +1047,65 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
 
     return () => controller.abort()
   }, [apiBaseUrl, session.token])
+
+  useEffect(() => {
+    if (!selectedPatient || !selectedPatientId || patientFormOpen) {
+      return undefined
+    }
+
+    const controller = new AbortController()
+
+    setPatientHistories((currentHistories) => ({
+      ...currentHistories,
+      [selectedPatientId]: {
+        error: null,
+        records: currentHistories[selectedPatientId]?.records ?? [],
+        status: 'loading',
+      },
+    }))
+
+    async function loadPatientHistory() {
+      try {
+        const records = await fetchWithAuth(
+          apiBaseUrl,
+          session.token,
+          `/historias-clinicas/paciente/${selectedPatientId}`,
+          controller.signal,
+        )
+
+        setPatientHistories((currentHistories) => ({
+          ...currentHistories,
+          [selectedPatientId]: {
+            error: null,
+            records: sortClinicalRecords(records),
+            status: 'loaded',
+          },
+        }))
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          setPatientHistories((currentHistories) => ({
+            ...currentHistories,
+            [selectedPatientId]: {
+              error: 'Mostrando registros de referencia mientras se sincroniza la historia clinica.',
+              records: getFallbackClinicalRecords(selectedPatient, data.appointments),
+              status: 'loaded',
+            },
+          }))
+        }
+      }
+    }
+
+    loadPatientHistory()
+
+    return () => controller.abort()
+  }, [
+    apiBaseUrl,
+    data.appointments,
+    patientFormOpen,
+    selectedPatient,
+    selectedPatientId,
+    session.token,
+  ])
 
   useEffect(() => {
     if (calendarDateTouched || data.appointments.length === 0) {
@@ -1014,10 +1339,33 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
   function openNewPatientForm() {
     setEditingPatient(null)
     setSelectedPatient(null)
+    setClinicalFeedback(null)
+    setClinicalRecordFormOpen(false)
     setPatientFeedback(null)
     setPatientForm(getEmptyPatientForm())
     setPatientFormOpen(true)
     setActiveNav('pacientes')
+  }
+
+  function openPatientHistory(patient) {
+    setSelectedPatient(patient)
+    setEditingPatient(null)
+    setPatientFormOpen(false)
+    setPatientFeedback(null)
+    setClinicalFeedback(null)
+    setClinicalRecordFormOpen(false)
+    setActiveNav('pacientes')
+  }
+
+  function closePatientHistory() {
+    setSelectedPatient(null)
+    setClinicalFeedback(null)
+    setClinicalRecordFormOpen(false)
+    setClinicalRecordForm(getEmptyClinicalRecordForm())
+  }
+
+  function exportClinicalHistory() {
+    window.print()
   }
 
   function openNewAppointmentForm() {
@@ -1085,6 +1433,8 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
   function openEditPatientForm(patient) {
     setEditingPatient(patient)
     setSelectedPatient(null)
+    setClinicalFeedback(null)
+    setClinicalRecordFormOpen(false)
     setPatientFeedback(null)
     setPatientForm(getPatientFormFromRecord(patient))
     setPatientFormOpen(true)
@@ -1101,6 +1451,45 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
       ...currentForm,
       [field]: value,
     }))
+  }
+
+  function openClinicalRecordForm(availableAppointments) {
+    const firstAppointment = availableAppointments[0]
+
+    setClinicalFeedback(null)
+    setClinicalRecordForm(getEmptyClinicalRecordForm(firstAppointment?.id ? String(firstAppointment.id) : ''))
+    setClinicalRecordFormOpen(true)
+  }
+
+  function closeClinicalRecordForm() {
+    setClinicalRecordFormOpen(false)
+    setClinicalRecordForm(getEmptyClinicalRecordForm())
+  }
+
+  function updateClinicalRecordForm(field, value) {
+    setClinicalRecordForm((currentForm) => ({
+      ...currentForm,
+      [field]: value,
+    }))
+  }
+
+  async function refreshPatientClinicalHistory(patientId) {
+    const records = await fetchWithAuth(
+      apiBaseUrl,
+      session.token,
+      `/historias-clinicas/paciente/${patientId}`,
+    )
+
+    setPatientHistories((currentHistories) => ({
+      ...currentHistories,
+      [patientId]: {
+        error: null,
+        records: sortClinicalRecords(records),
+        status: 'loaded',
+      },
+    }))
+
+    return records
   }
 
   async function refreshPatients() {
@@ -1286,6 +1675,42 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
       })
     } finally {
       setSavingPatient(false)
+    }
+  }
+
+  async function handleClinicalRecordSubmit(event) {
+    event.preventDefault()
+
+    if (!selectedPatient) {
+      return
+    }
+
+    setSavingClinicalRecord(true)
+    setClinicalFeedback(null)
+
+    try {
+      await requestWithAuth(apiBaseUrl, session.token, '/historias-clinicas', {
+        method: 'POST',
+        body: JSON.stringify(buildClinicalRecordPayload(clinicalRecordForm)),
+      })
+      await refreshPatientClinicalHistory(selectedPatient.id)
+      await refreshAppointments()
+      await refreshCalendarItems().catch(() => null)
+      setClinicalFeedback({
+        type: 'success',
+        message: 'Registro clinico agregado correctamente.',
+      })
+      closeClinicalRecordForm()
+    } catch (error) {
+      setClinicalFeedback({
+        type: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'No fue posible guardar el registro clinico.',
+      })
+    } finally {
+      setSavingClinicalRecord(false)
     }
   }
 
@@ -1506,6 +1931,10 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
   }
 
   function renderPatientsContent() {
+    if (selectedPatient && !patientFormOpen) {
+      return renderClinicalHistoryContent()
+    }
+
     return (
       <>
         <section className="dashboard-intro patient-intro">
@@ -1615,10 +2044,7 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
                           <button
                             type="button"
                             aria-label={`Ver ${patient.nombreCompleto}`}
-                            onClick={() => {
-                              setSelectedPatient(patient)
-                              setPatientFormOpen(false)
-                            }}
+                            onClick={() => openPatientHistory(patient)}
                           >
                             <EyeIcon />
                           </button>
@@ -1651,25 +2077,16 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
           ) : null}
         </section>
 
-        {(patientFormOpen || selectedPatient) ? (
+        {patientFormOpen ? (
           <section className="patient-detail-panel">
-            {patientFormOpen ? (
-              <PatientForm
-                editingPatient={editingPatient}
-                formValues={patientForm}
-                onCancel={closePatientForm}
-                onChange={updatePatientForm}
-                onSubmit={handlePatientSubmit}
-                saving={savingPatient}
-              />
-            ) : (
-              <PatientDetail
-                appointments={data.appointments}
-                onClose={() => setSelectedPatient(null)}
-                onEdit={() => openEditPatientForm(selectedPatient)}
-                patient={selectedPatient}
-              />
-            )}
+            <PatientForm
+              editingPatient={editingPatient}
+              formValues={patientForm}
+              onCancel={closePatientForm}
+              onChange={updatePatientForm}
+              onSubmit={handlePatientSubmit}
+              saving={savingPatient}
+            />
           </section>
         ) : (
           <section className="patient-guidance">
@@ -1685,6 +2102,189 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
             </div>
           </section>
         )}
+      </>
+    )
+  }
+
+  function renderClinicalHistoryContent() {
+    const historyState = selectedPatientId ? patientHistories[selectedPatientId] : null
+    const clinicalRecords = historyState?.records ?? []
+    const loadingHistory = !historyState || historyState.status === 'loading'
+    const availableAppointments = selectedPatient
+      ? getAvailableAppointmentsForClinicalRecord(selectedPatient, data.appointments, clinicalRecords)
+      : []
+    const patientAppointments = selectedPatient
+      ? data.appointments.filter((appointment) => String(appointment.pacienteId) === String(selectedPatient.id))
+      : []
+    const latestClinicalRecord = clinicalRecords[0]
+    const latestClinicalDate = latestClinicalRecord
+      ? getClinicalRecordDate(latestClinicalRecord)
+      : getPatientLastAppointment(selectedPatient.id, data.appointments)
+    const nextAppointment = getNextPatientAppointment(selectedPatient.id, data.appointments)
+    const criticalAlertLabel = clinicalRecords.some((record) =>
+      `${record.datosRelevantes ?? ''}`.toLowerCase().includes('alerg'),
+    )
+      ? 'Revisar alergias'
+      : 'Sin alertas criticas'
+
+    return (
+      <>
+        <section className="dashboard-intro clinical-history-intro">
+          <button
+            type="button"
+            className="clinical-back-button"
+            aria-label="Volver al listado de pacientes"
+            onClick={closePatientHistory}
+          >
+            <ChevronLeftIcon />
+          </button>
+          <div>
+            <h2>Historia clínica</h2>
+            <p>Registro cronológico de atenciones, diagnósticos y seguimiento del paciente.</p>
+          </div>
+          <div className="patient-toolbar clinical-history-actions">
+            <button type="button" className="secondary-action" onClick={exportClinicalHistory}>
+              <DownloadIcon />
+              Exportar PDF
+            </button>
+            <button
+              type="button"
+              className="primary-action"
+              disabled={availableAppointments.length === 0}
+              onClick={() => openClinicalRecordForm(availableAppointments)}
+            >
+              <PlusCircleIcon />
+              Nuevo registro
+            </button>
+          </div>
+        </section>
+
+        {clinicalFeedback ? (
+          <p className={`dashboard-notice ${clinicalFeedback.type === 'success' ? 'is-action' : ''}`}>
+            {clinicalFeedback.message}
+          </p>
+        ) : null}
+
+        <section className="clinical-history-layout">
+          <aside className="clinical-profile-panel">
+            <div className="clinical-profile-cover" />
+            <div className="clinical-profile-heading">
+              <span className="clinical-profile-avatar">
+                {getInitials(selectedPatient.nombreCompleto)}
+              </span>
+              <h3>{selectedPatient.nombreCompleto}</h3>
+              <p>ID: {selectedPatient.documento}</p>
+            </div>
+
+            <dl className="clinical-profile-list">
+              <div>
+                <dt>
+                  <IdCardIcon />
+                  Documento
+                </dt>
+                <dd>{selectedPatient.documento}</dd>
+              </div>
+              <div>
+                <dt>
+                  <PhoneIcon />
+                  Teléfono
+                </dt>
+                <dd>{selectedPatient.telefono}</dd>
+              </div>
+              <div>
+                <dt>
+                  <MailIcon />
+                  Correo
+                </dt>
+                <dd>{selectedPatient.email}</dd>
+              </div>
+              <div>
+                <dt>
+                  <CalendarIcon />
+                  Citas
+                </dt>
+                <dd>{patientAppointments.length.toLocaleString('es-CO')}</dd>
+              </div>
+            </dl>
+
+            <div className="clinical-alert-card">
+              <span>
+                <AlertIcon />
+              </span>
+              <div>
+                <strong>Alertas clínicas</strong>
+                <p>{criticalAlertLabel}</p>
+              </div>
+            </div>
+
+            <div className="clinical-summary-card">
+              <span>Último control</span>
+              <strong>{latestClinicalDate ? formatShortDate(latestClinicalDate) : 'Sin registro'}</strong>
+              <p>
+                {nextAppointment
+                  ? `Próxima cita: ${formatShortDate(nextAppointment.fechaHora)} · ${formatTime(nextAppointment.fechaHora)}`
+                  : 'Sin seguimiento programado en agenda.'}
+              </p>
+            </div>
+
+            <button type="button" className="secondary-action clinical-edit-patient" onClick={() => openEditPatientForm(selectedPatient)}>
+              <EditIcon />
+              Editar paciente
+            </button>
+          </aside>
+
+          <section className="clinical-timeline-panel">
+            <div className="clinical-timeline-heading">
+              <div>
+                <h3>Línea de tiempo clínica</h3>
+                <p>{clinicalRecords.length.toLocaleString('es-CO')} registros vinculados al paciente.</p>
+              </div>
+              <div className="clinical-filter-pills" aria-label="Filtros de historia clínica">
+                <span>Este año</span>
+                <span>Todos los registros</span>
+              </div>
+            </div>
+
+            {historyState?.error ? (
+              <p className="dashboard-notice clinical-sync-note">{historyState.error}</p>
+            ) : null}
+
+            {clinicalRecordFormOpen ? (
+              <ClinicalRecordForm
+                appointments={availableAppointments}
+                formValues={clinicalRecordForm}
+                onCancel={closeClinicalRecordForm}
+                onChange={updateClinicalRecordForm}
+                onSubmit={handleClinicalRecordSubmit}
+                saving={savingClinicalRecord}
+              />
+            ) : null}
+
+            {loadingHistory ? (
+              <div className="clinical-loading-state">
+                <ActivityIcon />
+                <span>Cargando historia clínica...</span>
+              </div>
+            ) : (
+              <div className="clinical-timeline" aria-label="Línea de tiempo clínica">
+                {clinicalRecords.map((record) => (
+                  <ClinicalTimelineRecord key={record.id} record={record} />
+                ))}
+              </div>
+            )}
+
+            {!loadingHistory && clinicalRecords.length === 0 ? (
+              <div className="clinical-empty-state">
+                <FileTextIcon />
+                <h3>Sin registros clínicos todavía</h3>
+                <p>
+                  El historial se construye con cada atención completada. Cuando exista una cita
+                  disponible, podrá agregarse un nuevo registro clínico desde este panel.
+                </p>
+              </div>
+            ) : null}
+          </section>
+        </section>
       </>
     )
   }
@@ -2446,72 +3046,126 @@ function CalendarEventForm({ formValues, onCancel, onChange, onSubmit, saving })
   )
 }
 
-function PatientDetail({ appointments, onClose, onEdit, patient }) {
-  const patientAppointments = appointments
-    .filter((appointment) => appointment.pacienteId === patient.id)
-    .sort((first, second) => parseDate(second.fechaHora) - parseDate(first.fechaHora))
-
+function ClinicalRecordForm({ appointments, formValues, onCancel, onChange, onSubmit, saving }) {
   return (
-    <div className="patient-detail">
+    <form className="patient-form clinical-record-form" onSubmit={onSubmit}>
       <div className="section-heading is-row">
         <div>
-          <h2>Ficha del paciente</h2>
-          <p>Información disponible en el directorio clínico.</p>
+          <h2>Nuevo registro clínico</h2>
+          <p>Asocie la nota a una cita y consolide la información médica relevante.</p>
         </div>
-        <button type="button" className="text-action" onClick={onClose}>
+        <button type="button" className="text-action" onClick={onCancel}>
           Cerrar
         </button>
       </div>
 
-      <div className="patient-profile">
-        <span className="patient-profile-avatar">{getInitials(patient.nombreCompleto)}</span>
-        <div>
-          <h3>{patient.nombreCompleto}</h3>
-          <p>{patient.email}</p>
-        </div>
-        <button type="button" className="secondary-action" onClick={onEdit}>
-          <EditIcon />
-          Editar
+      <div className="patient-form-grid">
+        <label className="is-wide">
+          <span>Cita asociada</span>
+          <select
+            value={formValues.citaId}
+            onChange={(event) => onChange('citaId', event.target.value)}
+            required
+          >
+            <option value="">Seleccione una cita</option>
+            {appointments.map((appointment) => (
+              <option key={appointment.id} value={appointment.id}>
+                {formatShortDate(appointment.fechaHora)} · {formatTime(appointment.fechaHora)} · {appointment.procedimientoNombre}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="is-wide">
+          <span>Diagnóstico</span>
+          <textarea
+            value={formValues.diagnostico}
+            onChange={(event) => onChange('diagnostico', event.target.value)}
+            maxLength="5000"
+            rows="3"
+            required
+          />
+        </label>
+        <label className="is-wide">
+          <span>Observaciones</span>
+          <textarea
+            value={formValues.observaciones}
+            onChange={(event) => onChange('observaciones', event.target.value)}
+            maxLength="5000"
+            rows="4"
+            required
+          />
+        </label>
+        <label className="is-wide">
+          <span>Datos relevantes</span>
+          <textarea
+            value={formValues.datosRelevantes}
+            onChange={(event) => onChange('datosRelevantes', event.target.value)}
+            maxLength="5000"
+            rows="3"
+            required
+          />
+        </label>
+      </div>
+
+      <div className="patient-form-actions">
+        <button type="button" className="secondary-action" onClick={onCancel}>
+          Cancelar
+        </button>
+        <button type="submit" className="primary-action" disabled={saving || appointments.length === 0}>
+          {saving ? 'Guardando...' : 'Guardar registro'}
         </button>
       </div>
+    </form>
+  )
+}
 
-      <dl className="patient-detail-list">
-        <div>
-          <dt>Documento</dt>
-          <dd>{patient.documento}</dd>
-        </div>
-        <div>
-          <dt>Teléfono</dt>
-          <dd>{patient.telefono}</dd>
-        </div>
-        <div>
-          <dt>Dirección</dt>
-          <dd>{patient.direccion}</dd>
-        </div>
-        <div>
-          <dt>Citas registradas</dt>
-          <dd>{patientAppointments.length}</dd>
-        </div>
-      </dl>
+function ClinicalTimelineRecord({ record }) {
+  const kind = getClinicalRecordKind(record)
+  const recordTitle = record.diagnostico?.trim() || record.procedimientoNombre || 'Registro clínico'
+  const recordNotes = record.observaciones?.trim() || 'Sin observaciones registradas.'
+  const relevantData = record.datosRelevantes?.trim() || 'Sin datos relevantes registrados.'
 
-      <div className="patient-history">
-        <h3>Historial reciente</h3>
-        {patientAppointments.slice(0, 3).map((appointment) => (
-          <article key={appointment.id}>
-            <span>
-              <strong>{appointment.procedimientoNombre}</strong>
-              <small>{formatShortDate(appointment.fechaHora)} · {formatTime(appointment.fechaHora)}</small>
-            </span>
-            <span className={`status-badge ${getStatusClass(appointment.estado)}`}>
-              {formatStatus(appointment.estado)}
-            </span>
-          </article>
-        ))}
-        {patientAppointments.length === 0 ? (
-          <p className="empty-state">Este paciente aún no tiene citas registradas.</p>
-        ) : null}
+  return (
+    <article className={`clinical-record is-${kind}`}>
+      <span className="clinical-record-node">
+        {renderClinicalRecordIcon(kind)}
+      </span>
+      <div className="clinical-record-card">
+        <div className="clinical-record-meta">
+          <span>{formatClinicalDate(record.fechaRegistro ?? record.citaFechaHora)}</span>
+          <strong>{getClinicalKindLabel(kind)}</strong>
+          <span className="clinical-record-menu" aria-hidden="true">
+            <MoreVerticalIcon />
+          </span>
+        </div>
+        <h4>{recordTitle}</h4>
+        <p>{recordNotes}</p>
+        <div className="clinical-record-footer">
+          <span className="clinical-doctor-avatar">{getInitials(record.doctorNombre)}</span>
+          <span>
+            <strong>{record.doctorNombre}</strong>
+            <small>{record.doctorEspecialidad ?? record.procedimientoNombre}</small>
+          </span>
+          <details className="clinical-record-details">
+            <summary>Ver informe completo</summary>
+            <dl>
+              <div>
+                <dt>Procedimiento</dt>
+                <dd>{record.procedimientoNombre}</dd>
+              </div>
+              <div>
+                <dt>Datos relevantes</dt>
+                <dd>{relevantData}</dd>
+              </div>
+              <div>
+                <dt>Estado de la cita</dt>
+                <dd>{formatStatus(record.citaEstado)}</dd>
+              </div>
+            </dl>
+          </details>
+        </div>
       </div>
-    </div>
+    </article>
   )
 }
 
@@ -2543,10 +3197,43 @@ function WeeklyChart({ chart, weeklyData }) {
   )
 }
 
+function renderClinicalRecordIcon(kind) {
+  if (kind === 'lab') {
+    return <FlaskIcon />
+  }
+
+  if (kind === 'medication') {
+    return <PillIcon />
+  }
+
+  if (kind === 'control') {
+    return <ActivityIcon />
+  }
+
+  return <StethoscopeIcon />
+}
+
 function ActivityIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M4 13h4l2-6 4 10 2-4h4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+    </svg>
+  )
+}
+
+function AlertIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 4.4 21 19H3L12 4.4Z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.7" />
+      <path d="M12 9.2v4.4M12 16.8h.01" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.9" />
+    </svg>
+  )
+}
+
+function ChevronLeftIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m14.5 6-6 6 6 6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.9" />
     </svg>
   )
 }
@@ -2581,6 +3268,69 @@ function FilterIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M5 6h14l-5.2 6.1v4.8l-3.6 1.8v-6.6L5 6Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+    </svg>
+  )
+}
+
+function FileTextIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 3.8h7.2L19 8.6v11.6H7A2 2 0 0 1 5 18.2V5.8a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.7" />
+      <path d="M14 4v5h5M8.5 13h7M8.5 16h5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+    </svg>
+  )
+}
+
+function FlaskIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 4.5h6M10 4.5v5.2l-4.1 7.7A2 2 0 0 0 7.7 20h8.6a2 2 0 0 0 1.8-2.6L14 9.7V4.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+      <path d="M8.2 15h7.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+    </svg>
+  )
+}
+
+function IdCardIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4.8 6.5h14.4v11H4.8v-11Z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.7" />
+      <path d="M8 10h3.2M8 13h5.3M15.8 10.4h1.8M15.8 13.4h1.8" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+    </svg>
+  )
+}
+
+function MailIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5.5 7h13A1.5 1.5 0 0 1 20 8.5v7a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 15.5v-7A1.5 1.5 0 0 1 5.5 7Z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.7" />
+      <path d="m5 8 7 5 7-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+    </svg>
+  )
+}
+
+function MoreVerticalIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="6.5" r="1" fill="currentColor" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <circle cx="12" cy="17.5" r="1" fill="currentColor" />
+    </svg>
+  )
+}
+
+function PhoneIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7.8 5.2 10 9.1l-1.4 1.4a10.2 10.2 0 0 0 4.9 4.9l1.4-1.4 3.9 2.2-.7 2.6c-.2.7-.9 1.1-1.6 1A14.8 14.8 0 0 1 4.2 7.5c-.1-.7.3-1.4 1-1.6l2.6-.7Z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.7" />
+    </svg>
+  )
+}
+
+function PillIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M10.1 18.2a4.2 4.2 0 0 1-5.9-5.9l4.1-4.1a4.2 4.2 0 0 1 5.9 5.9l-4.1 4.1Z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.7" />
+      <path d="m8.2 10.2 5.6 5.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
     </svg>
   )
 }
@@ -2658,6 +3408,15 @@ function SettingsIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" strokeWidth="1.7" />
       <path d="M12 3.8v2.1m0 12.2v2.1m5.8-14-1.5 1.5M7.7 16.3l-1.5 1.5m14-5.8h-2.1M5.9 12H3.8m14 5.8-1.5-1.5M7.7 7.7 6.2 6.2" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+    </svg>
+  )
+}
+
+function StethoscopeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6.5 5v4.2a4.2 4.2 0 1 0 8.4 0V5M5 5h3M13.4 5h3M10.7 13.1v1.8a4.1 4.1 0 0 0 4.1 4.1h.7a3.1 3.1 0 0 0 3.1-3.1v-1.1" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+      <circle cx="18.6" cy="13" r="1.8" fill="none" stroke="currentColor" strokeWidth="1.7" />
     </svg>
   )
 }
