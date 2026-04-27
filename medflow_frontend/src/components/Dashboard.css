@@ -893,6 +893,11 @@
   color: #0b8bff;
 }
 
+.patient-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .patient-actions button.is-danger:hover {
   background: #fff4f2;
   color: #d44237;
@@ -930,7 +935,8 @@
   font-weight: 800;
 }
 
-.patient-form-grid input {
+.patient-form-grid input,
+.patient-form-grid select {
   height: 46px;
   width: 100%;
   border: 1px solid #d7dfeb;
@@ -939,9 +945,11 @@
   color: #1d2430;
   font: inherit;
   outline: 0;
+  background: #ffffff;
 }
 
-.patient-form-grid input:focus {
+.patient-form-grid input:focus,
+.patient-form-grid select:focus {
   border-color: #2a96f3;
   box-shadow: 0 0 0 3px rgba(42, 150, 243, 0.12);
 }
@@ -1077,6 +1085,192 @@
   line-height: 1.45;
 }
 
+.appointments-intro {
+  align-items: center;
+}
+
+.appointments-filter-panel,
+.appointments-manager,
+.appointment-detail-panel,
+.appointment-summary-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(31, 41, 55, 0.06);
+}
+
+.appointments-filter-panel {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) 180px 180px;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 28px;
+  padding: 22px 24px;
+}
+
+.appointment-search {
+  width: 100%;
+}
+
+.appointment-field {
+  display: grid;
+  gap: 8px;
+}
+
+.appointment-field span {
+  color: #566276;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.appointment-field input,
+.appointment-field select {
+  height: 46px;
+  width: 100%;
+  border: 1px solid #d7dfeb;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #1d2430;
+  font: inherit;
+  outline: 0;
+}
+
+.appointment-field input:focus,
+.appointment-field select:focus {
+  border-color: #2a96f3;
+  box-shadow: 0 0 0 3px rgba(42, 150, 243, 0.12);
+}
+
+.appointment-metrics {
+  margin-bottom: 28px;
+}
+
+.appointments-manager {
+  overflow: hidden;
+  padding-top: 22px;
+}
+
+.appointments-manager > .section-heading {
+  padding: 0 24px 20px;
+}
+
+.count-pill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #1f2732;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.appointments-table-wrap {
+  overflow-x: auto;
+}
+
+.appointments-table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+}
+
+.appointments-table th,
+.appointments-table td {
+  padding: 16px 24px;
+  border-top: 1px solid #e8eef5;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.appointments-table th {
+  background: #f8fafc;
+  color: #566276;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.appointments-table td {
+  color: #1d2430;
+  font-size: 0.9rem;
+}
+
+.appointment-hour {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.appointment-hour {
+  color: #0b8bff;
+}
+
+.appointment-hour svg {
+  width: 17px;
+  height: 17px;
+}
+
+.appointment-hour strong {
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.appointment-detail-panel {
+  margin-top: 28px;
+  padding: 24px;
+}
+
+.appointment-form {
+  width: 100%;
+}
+
+.appointment-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 28px;
+}
+
+.appointment-summary-card {
+  display: flex;
+  gap: 14px;
+  min-height: 92px;
+  padding: 18px;
+}
+
+.appointment-summary-card > span {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #eef7ff;
+  color: #0b8bff;
+}
+
+.appointment-summary-card svg {
+  width: 20px;
+  height: 20px;
+}
+
+.appointment-summary-card h3 {
+  margin: 0;
+  color: #17202c;
+  font-size: 0.98rem;
+}
+
+.appointment-summary-card p {
+  margin: 5px 0 0;
+  color: #4d596d;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
 .dashboard-footer {
   margin-top: auto;
   display: flex;
@@ -1177,11 +1371,14 @@
   .metric-grid,
   .quick-grid,
   .dashboard-rail,
-  .patient-metrics {
+  .patient-metrics,
+  .appointment-metrics,
+  .appointment-summary-grid {
     grid-template-columns: 1fr;
   }
 
   .patient-intro,
+  .appointments-intro,
   .patients-panel-toolbar,
   .patient-toolbar {
     align-items: stretch;
@@ -1195,6 +1392,10 @@
 
   .patient-detail-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .appointments-filter-panel {
+    grid-template-columns: 1fr;
   }
 }
 

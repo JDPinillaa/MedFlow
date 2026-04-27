@@ -7,24 +7,33 @@ const FALLBACK_APPOINTMENTS = [
     id: 'fallback-1',
     fechaHora: '2026-05-10T09:00:00',
     estado: 'COMPLETADA',
+    pacienteId: 'patient-1',
     pacienteNombre: 'Ana Perez',
+    doctorId: 'doctor-1',
     procedimientoNombre: 'Consulta General',
+    procedimientoId: 'procedure-1',
     doctorNombre: 'Dra. Laura Gomez',
   },
   {
     id: 'fallback-2',
     fechaHora: '2026-05-12T09:00:00',
     estado: 'PROGRAMADA',
+    pacienteId: 'patient-2',
     pacienteNombre: 'Carlos Ramirez',
+    doctorId: 'doctor-1',
     procedimientoNombre: 'Consulta General',
+    procedimientoId: 'procedure-1',
     doctorNombre: 'Dra. Laura Gomez',
   },
   {
     id: 'fallback-3',
     fechaHora: '2026-05-12T11:00:00',
     estado: 'PROGRAMADA',
+    pacienteId: 'patient-3',
     pacienteNombre: 'Maria Torres',
+    doctorId: 'doctor-2',
     procedimientoNombre: 'Control Dermatologico',
+    procedimientoId: 'procedure-2',
     doctorNombre: 'Dr. Andres Ruiz',
   },
 ]
@@ -59,6 +68,12 @@ const FALLBACK_PATIENTS = [
 const FALLBACK_DOCTORS = [
   { id: 'doctor-1', nombreCompleto: 'Dra. Laura Gomez', especialidad: 'Medicina General' },
   { id: 'doctor-2', nombreCompleto: 'Dr. Andres Ruiz', especialidad: 'Dermatologia' },
+]
+
+const FALLBACK_PROCEDURES = [
+  { id: 'procedure-1', nombre: 'Consulta General', duracionMinutos: 30 },
+  { id: 'procedure-2', nombre: 'Control Dermatologico', duracionMinutos: 45 },
+  { id: 'procedure-3', nombre: 'Resultados de Laboratorio', duracionMinutos: 25 },
 ]
 
 const NAV_ITEMS = [
@@ -194,6 +209,28 @@ function formatShortDate(value) {
   }).format(date)
 }
 
+function getDateInputValue(date = new Date()) {
+  const timezoneOffset = date.getTimezoneOffset() * 60000
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 10)
+}
+
+function getDateTimeInputValue(value) {
+  const date = value ? parseDate(value) : new Date()
+
+  if (!date) {
+    return ''
+  }
+
+  const timezoneOffset = date.getTimezoneOffset() * 60000
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16)
+}
+
+function getTomorrowDate() {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  return tomorrow
+}
+
 function formatStatus(status) {
   return status
     ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
@@ -311,12 +348,82 @@ function getPatientFormFromRecord(patient) {
   }
 }
 
+function appointmentMatchesSearch(appointment, searchTerm) {
+  const normalizedTerm = searchTerm.trim().toLowerCase()
+
+  if (!normalizedTerm) {
+    return true
+  }
+
+  return [
+    appointment.pacienteNombre,
+    appointment.procedimientoNombre,
+    appointment.doctorNombre,
+    appointment.estado,
+  ]
+    .filter(Boolean)
+    .some((value) => value.toLowerCase().includes(normalizedTerm))
+}
+
+function appointmentMatchesDate(appointment, dateFilter) {
+  if (!dateFilter) {
+    return true
+  }
+
+  const date = parseDate(appointment.fechaHora)
+  return date ? getDateInputValue(date) === dateFilter : false
+}
+
+function appointmentMatchesStatus(appointment, statusFilter) {
+  return statusFilter === 'TODOS' || appointment.estado === statusFilter
+}
+
+function getEmptyAppointmentForm(doctorId = '') {
+  return {
+    pacienteId: '',
+    doctorId,
+    procedimientoId: '',
+    fechaHora: getDateTimeInputValue(),
+    estado: 'PROGRAMADA',
+  }
+}
+
+function getAppointmentFormFromRecord(appointment) {
+  return {
+    pacienteId: appointment.pacienteId ? String(appointment.pacienteId) : '',
+    doctorId: appointment.doctorId ? String(appointment.doctorId) : '',
+    procedimientoId: appointment.procedimientoId ? String(appointment.procedimientoId) : '',
+    fechaHora: getDateTimeInputValue(appointment.fechaHora),
+    estado: appointment.estado ?? 'PROGRAMADA',
+  }
+}
+
+function toNumericId(value) {
+  if (value === '') {
+    return ''
+  }
+
+  const parsedValue = Number(value)
+  return Number.isNaN(parsedValue) ? value : parsedValue
+}
+
+function buildAppointmentPayload(formValues) {
+  return {
+    pacienteId: toNumericId(formValues.pacienteId),
+    doctorId: toNumericId(formValues.doctorId),
+    procedimientoId: toNumericId(formValues.procedimientoId),
+    fechaHora: formValues.fechaHora,
+    estado: formValues.estado,
+  }
+}
+
 function Dashboard({ apiBaseUrl, onLogout, session }) {
   const [activeNav, setActiveNav] = useState('dashboard')
   const [data, setData] = useState({
     appointments: [],
     doctors: [],
     patients: [],
+    procedures: [],
   })
   const [loading, setLoading] = useState(true)
   const [syncError, setSyncError] = useState(null)
@@ -328,6 +435,14 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [editingPatient, setEditingPatient] = useState(null)
   const [savingPatient, setSavingPatient] = useState(false)
+  const [appointmentSearch, setAppointmentSearch] = useState('')
+  const [appointmentStatusFilter, setAppointmentStatusFilter] = useState('TODOS')
+  const [appointmentDateFilter, setAppointmentDateFilter] = useState('')
+  const [appointmentForm, setAppointmentForm] = useState(getEmptyAppointmentForm)
+  const [appointmentFormOpen, setAppointmentFormOpen] = useState(false)
+  const [editingAppointment, setEditingAppointment] = useState(null)
+  const [appointmentFeedback, setAppointmentFeedback] = useState(null)
+  const [savingAppointment, setSavingAppointment] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -337,19 +452,21 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
       setSyncError(null)
 
       try {
-        const [appointments, patients, doctors] = await Promise.all([
+        const [appointments, patients, doctors, procedures] = await Promise.all([
           fetchWithAuth(apiBaseUrl, session.token, '/citas', controller.signal),
           fetchWithAuth(apiBaseUrl, session.token, '/pacientes', controller.signal),
           fetchWithAuth(apiBaseUrl, session.token, '/doctores', controller.signal),
+          fetchWithAuth(apiBaseUrl, session.token, '/procedimientos', controller.signal),
         ])
 
-        setData({ appointments, patients, doctors })
+        setData({ appointments, patients, doctors, procedures })
       } catch (error) {
         if (error.name !== 'AbortError') {
           setData({
             appointments: FALLBACK_APPOINTMENTS,
             patients: FALLBACK_PATIENTS,
             doctors: FALLBACK_DOCTORS,
+            procedures: FALLBACK_PROCEDURES,
           })
           setSyncError('Mostrando datos de referencia mientras se sincroniza el servidor.')
         }
@@ -426,13 +543,42 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
     [data.patients, patientSearch],
   )
 
+  const visibleAppointments = useMemo(() => {
+    return data.appointments
+      .filter((appointment) => appointmentMatchesSearch(appointment, appointmentSearch))
+      .filter((appointment) => appointmentMatchesDate(appointment, appointmentDateFilter))
+      .filter((appointment) => appointmentMatchesStatus(appointment, appointmentStatusFilter))
+      .sort((first, second) => parseDate(first.fechaHora) - parseDate(second.fechaHora))
+  }, [appointmentDateFilter, appointmentSearch, appointmentStatusFilter, data.appointments])
+
+  const appointmentMetrics = useMemo(() => {
+    const tomorrowValue = getDateInputValue(getTomorrowDate())
+    const activeVisibleAppointments = visibleAppointments.filter(
+      (appointment) => appointment.estado !== 'CANCELADA',
+    )
+
+    return {
+      totalVisible: visibleAppointments.length,
+      completed: visibleAppointments.filter((appointment) => appointment.estado === 'COMPLETADA').length,
+      pending: visibleAppointments.filter((appointment) => appointment.estado === 'PROGRAMADA').length,
+      cancelled: visibleAppointments.filter((appointment) => appointment.estado === 'CANCELADA').length,
+      tomorrow: data.appointments.filter(
+        (appointment) =>
+          appointment.estado !== 'CANCELADA' &&
+          appointmentMatchesDate(appointment, tomorrowValue),
+      ).length,
+      activeVisibleAppointments,
+    }
+  }, [data.appointments, visibleAppointments])
+
   const weeklyData = useMemo(
     () => buildWeeklyData(metrics.activeAppointments),
     [metrics.activeAppointments],
   )
   const chart = useMemo(() => buildChartPath(weeklyData), [weeklyData])
   const greetingName = getGreetingName(session)
-  const currentDoctor = data.doctors[0]
+  const currentDoctor =
+    data.doctors.find((doctor) => doctor.email === session.email) ?? data.doctors[0]
   const doctorLabel = currentDoctor?.nombreCompleto ?? greetingName
   const specialtyLabel = currentDoctor?.especialidad ?? session.rol
   const todayLabel = formatDateLabel(new Date())
@@ -442,10 +588,11 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
   }
 
   function handleNavClick(itemId) {
-    if (itemId === 'dashboard' || itemId === 'pacientes') {
+    if (itemId === 'dashboard' || itemId === 'pacientes' || itemId === 'citas') {
       setActiveNav(itemId)
       setQuickMessage(null)
       setPatientFeedback(null)
+      setAppointmentFeedback(null)
       return
     }
 
@@ -460,6 +607,34 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
     setPatientForm(getEmptyPatientForm())
     setPatientFormOpen(true)
     setActiveNav('pacientes')
+  }
+
+  function openNewAppointmentForm() {
+    setEditingAppointment(null)
+    setAppointmentFeedback(null)
+    setAppointmentForm(getEmptyAppointmentForm(currentDoctor?.id ? String(currentDoctor.id) : ''))
+    setAppointmentFormOpen(true)
+    setActiveNav('citas')
+  }
+
+  function openEditAppointmentForm(appointment) {
+    setEditingAppointment(appointment)
+    setAppointmentFeedback(null)
+    setAppointmentForm(getAppointmentFormFromRecord(appointment))
+    setAppointmentFormOpen(true)
+  }
+
+  function closeAppointmentForm() {
+    setAppointmentFormOpen(false)
+    setEditingAppointment(null)
+    setAppointmentForm(getEmptyAppointmentForm())
+  }
+
+  function updateAppointmentForm(field, value) {
+    setAppointmentForm((currentForm) => ({
+      ...currentForm,
+      [field]: value,
+    }))
   }
 
   function openEditPatientForm(patient) {
@@ -494,6 +669,82 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
       appointments,
       patients,
     }))
+  }
+
+  async function refreshAppointments() {
+    const appointments = await fetchWithAuth(apiBaseUrl, session.token, '/citas')
+
+    setData((currentData) => ({
+      ...currentData,
+      appointments,
+    }))
+  }
+
+  async function handleAppointmentSubmit(event) {
+    event.preventDefault()
+    setSavingAppointment(true)
+    setAppointmentFeedback(null)
+
+    try {
+      const payload = {
+        ...buildAppointmentPayload(appointmentForm),
+        doctorId: appointmentForm.doctorId
+          ? toNumericId(appointmentForm.doctorId)
+          : toNumericId(currentDoctor?.id ?? ''),
+      }
+      const path = editingAppointment ? `/citas/${editingAppointment.id}` : '/citas'
+      const method = editingAppointment ? 'PUT' : 'POST'
+
+      await requestWithAuth(apiBaseUrl, session.token, path, {
+        method,
+        body: JSON.stringify(payload),
+      })
+      await refreshAppointments()
+      setAppointmentFeedback({
+        type: 'success',
+        message: editingAppointment ? 'Cita actualizada correctamente.' : 'Cita creada correctamente.',
+      })
+      closeAppointmentForm()
+    } catch (error) {
+      setAppointmentFeedback({
+        type: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'No fue posible guardar la cita.',
+      })
+    } finally {
+      setSavingAppointment(false)
+    }
+  }
+
+  async function handleCancelAppointment(appointment) {
+    const confirmed = window.confirm(
+      `¿Cancelar la cita de ${appointment.pacienteNombre} a las ${formatTime(appointment.fechaHora)}?`,
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      await requestWithAuth(apiBaseUrl, session.token, `/citas/${appointment.id}/cancelar`, {
+        method: 'PATCH',
+      })
+      await refreshAppointments()
+      setAppointmentFeedback({
+        type: 'success',
+        message: 'Cita cancelada correctamente.',
+      })
+    } catch (error) {
+      setAppointmentFeedback({
+        type: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'No fue posible cancelar la cita.',
+      })
+    }
   }
 
   async function handlePatientSubmit(event) {
@@ -616,7 +867,7 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
             icon={UsersIcon}
             label="Pacientes totales"
             tone="green"
-            trend={`${metrics.totalDoctors} doctores activos`}
+            trend={`${metrics.totalPatients} pacientes registrados`}
             value={metrics.totalPatients}
           />
           <MetricCard
@@ -647,9 +898,7 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
                 <button
                   type="button"
                   className="quick-action is-appointment"
-                  onClick={() =>
-                    handleQuickAction('El módulo de citas quedó señalado para la siguiente pantalla del flujo.')
-                  }
+                  onClick={openNewAppointmentForm}
                 >
                   <span>
                     <PlusCircleIcon />
@@ -926,6 +1175,203 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
     )
   }
 
+  function renderAppointmentsContent() {
+    return (
+      <>
+        <section className="dashboard-intro appointments-intro">
+          <div>
+            <h2>Gestión de citas</h2>
+            <p>Administre la agenda diaria, confirme estados y reserve nuevos espacios clínicos.</p>
+          </div>
+          <button type="button" className="primary-action" onClick={openNewAppointmentForm}>
+            <PlusCircleIcon />
+            Nueva cita
+          </button>
+        </section>
+
+        {appointmentFeedback ? (
+          <p className={`dashboard-notice ${appointmentFeedback.type === 'success' ? 'is-action' : ''}`}>
+            {appointmentFeedback.message}
+          </p>
+        ) : null}
+
+        <section className="appointments-filter-panel" aria-label="Filtros de citas">
+          <label className="patient-search appointment-search">
+            <SearchIcon />
+            <input
+              type="search"
+              placeholder="Buscar paciente, médico o motivo de consulta..."
+              value={appointmentSearch}
+              onChange={(event) => setAppointmentSearch(event.target.value)}
+            />
+          </label>
+
+          <label className="appointment-field">
+            <span>Fecha</span>
+            <input
+              type="date"
+              value={appointmentDateFilter}
+              onChange={(event) => setAppointmentDateFilter(event.target.value)}
+            />
+          </label>
+
+          <label className="appointment-field">
+            <span>Estado</span>
+            <select
+              value={appointmentStatusFilter}
+              onChange={(event) => setAppointmentStatusFilter(event.target.value)}
+            >
+              <option value="TODOS">Todos</option>
+              <option value="PROGRAMADA">Programadas</option>
+              <option value="COMPLETADA">Completadas</option>
+              <option value="CANCELADA">Canceladas</option>
+            </select>
+          </label>
+        </section>
+
+        <section className="metric-grid appointment-metrics" aria-label="Indicadores de citas">
+          <MetricCard
+            icon={ClockIcon}
+            label="Citas filtradas"
+            tone="blue"
+            trend={`${appointmentMetrics.activeVisibleAppointments.length} activas`}
+            value={appointmentMetrics.totalVisible}
+          />
+          <MetricCard
+            icon={ActivityIcon}
+            label="Completadas"
+            tone="green"
+            trend="Pacientes atendidos"
+            value={appointmentMetrics.completed}
+          />
+          <MetricCard
+            icon={CalendarIcon}
+            label="Agenda mañana"
+            tone="violet"
+            trend={`${appointmentMetrics.pending} pendientes hoy`}
+            value={appointmentMetrics.tomorrow}
+          />
+        </section>
+
+        <section className="appointments-manager">
+          <div className="section-heading is-row">
+            <div>
+              <h2>Agenda del consultorio</h2>
+              <p>Visualización de las consultas programadas según los filtros aplicados.</p>
+            </div>
+            <span className="count-pill">{visibleAppointments.length} citas</span>
+          </div>
+
+          <div className="appointments-table-wrap">
+            <table className="appointments-table">
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th>Paciente</th>
+                  <th>Motivo de consulta</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleAppointments.map((appointment) => (
+                  <tr key={appointment.id}>
+                    <td>
+                      <span className="appointment-hour">
+                        <ClockIcon />
+                        <strong>{formatTime(appointment.fechaHora)}</strong>
+                      </span>
+                    </td>
+                    <td>
+                      <span className="patient-cell">
+                        <span className="patient-avatar">
+                          {getInitials(appointment.pacienteNombre)}
+                        </span>
+                        <span>
+                          <strong>{appointment.pacienteNombre}</strong>
+                          <small>APT-{String(appointment.id).padStart(3, '0')}</small>
+                        </span>
+                      </span>
+                    </td>
+                    <td>{appointment.procedimientoNombre}</td>
+                    <td>
+                      <span className={`status-badge ${getStatusClass(appointment.estado)}`}>
+                        {formatStatus(appointment.estado)}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="patient-actions">
+                        <button
+                          type="button"
+                          aria-label={`Editar cita de ${appointment.pacienteNombre}`}
+                          onClick={() => openEditAppointmentForm(appointment)}
+                        >
+                          <EditIcon />
+                        </button>
+                        <button
+                          type="button"
+                          className="is-danger"
+                          aria-label={`Cancelar cita de ${appointment.pacienteNombre}`}
+                          disabled={appointment.estado === 'CANCELADA'}
+                          onClick={() => handleCancelAppointment(appointment)}
+                        >
+                          <TrashIcon />
+                        </button>
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {visibleAppointments.length === 0 ? (
+            <p className="empty-state">No hay citas con los filtros seleccionados.</p>
+          ) : null}
+        </section>
+
+        {appointmentFormOpen ? (
+          <section className="appointment-detail-panel">
+            <AppointmentForm
+              editingAppointment={editingAppointment}
+              formValues={appointmentForm}
+              onCancel={closeAppointmentForm}
+              onChange={updateAppointmentForm}
+              onSubmit={handleAppointmentSubmit}
+              patients={data.patients}
+              procedures={data.procedures}
+              saving={savingAppointment}
+            />
+          </section>
+        ) : (
+          <section className="appointment-summary-grid">
+            <article className="appointment-summary-card">
+              <span><ActivityIcon /></span>
+              <div>
+                <h3>Citas completadas</h3>
+                <p>{appointmentMetrics.completed} pacientes ya fueron atendidos con éxito.</p>
+              </div>
+            </article>
+            <article className="appointment-summary-card">
+              <span><ClockIcon /></span>
+              <div>
+                <h3>En espera</h3>
+                <p>{appointmentMetrics.pending} consultas permanecen pendientes en esta vista.</p>
+              </div>
+            </article>
+            <article className="appointment-summary-card">
+              <span><CalendarIcon /></span>
+              <div>
+                <h3>Cancelaciones</h3>
+                <p>{appointmentMetrics.cancelled} registros figuran como cancelados.</p>
+              </div>
+            </article>
+          </section>
+        )}
+      </>
+    )
+  }
+
   return (
     <main className="dashboard-shell">
       <aside className="dashboard-sidebar" aria-label="Navegación principal">
@@ -983,7 +1429,11 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
         </header>
 
         <div className="dashboard-content">
-          {activeNav === 'pacientes' ? renderPatientsContent() : renderDashboardContent()}
+          {activeNav === 'pacientes'
+            ? renderPatientsContent()
+            : activeNav === 'citas'
+              ? renderAppointmentsContent()
+              : renderDashboardContent()}
         </div>
 
         <footer className="dashboard-footer">
@@ -1081,6 +1531,98 @@ function PatientForm({ editingPatient, formValues, onCancel, onChange, onSubmit,
         </button>
         <button type="submit" className="primary-action" disabled={saving}>
           {saving ? 'Guardando...' : editingPatient ? 'Guardar cambios' : 'Registrar paciente'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function AppointmentForm({
+  editingAppointment,
+  formValues,
+  onCancel,
+  onChange,
+  onSubmit,
+  patients,
+  procedures,
+  saving,
+}) {
+  return (
+    <form className="patient-form appointment-form" onSubmit={onSubmit}>
+      <div className="section-heading is-row">
+        <div>
+          <h2>{editingAppointment ? 'Editar cita' : 'Nueva cita'}</h2>
+          <p>
+            {editingAppointment
+              ? 'Ajuste la programación, el estado o los datos clínicos de la cita.'
+              : 'Seleccione paciente, médico y procedimiento para reservar el espacio.'}
+          </p>
+        </div>
+        <button type="button" className="text-action" onClick={onCancel}>
+          Cancelar
+        </button>
+      </div>
+
+      <div className="patient-form-grid">
+        <label>
+          <span>Paciente</span>
+          <select
+            value={formValues.pacienteId}
+            onChange={(event) => onChange('pacienteId', event.target.value)}
+            required
+          >
+            <option value="">Seleccione paciente</option>
+            {patients.map((patient) => (
+              <option key={patient.id} value={patient.id}>
+                {patient.nombreCompleto}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Procedimiento</span>
+          <select
+            value={formValues.procedimientoId}
+            onChange={(event) => onChange('procedimientoId', event.target.value)}
+            required
+          >
+            <option value="">Seleccione procedimiento</option>
+            {procedures.map((procedure) => (
+              <option key={procedure.id} value={procedure.id}>
+                {procedure.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Fecha y hora</span>
+          <input
+            type="datetime-local"
+            value={formValues.fechaHora}
+            onChange={(event) => onChange('fechaHora', event.target.value)}
+            required
+          />
+        </label>
+        <label className="is-wide">
+          <span>Estado</span>
+          <select
+            value={formValues.estado}
+            onChange={(event) => onChange('estado', event.target.value)}
+            required
+          >
+            <option value="PROGRAMADA">Programada</option>
+            <option value="COMPLETADA">Completada</option>
+            <option value="CANCELADA">Cancelada</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="patient-form-actions">
+        <button type="button" className="secondary-action" onClick={onCancel}>
+          Cancelar
+        </button>
+        <button type="submit" className="primary-action" disabled={saving}>
+          {saving ? 'Guardando...' : editingAppointment ? 'Guardar cambios' : 'Crear cita'}
         </button>
       </div>
     </form>
