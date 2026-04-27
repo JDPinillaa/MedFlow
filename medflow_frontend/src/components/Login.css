@@ -96,7 +96,14 @@
   color: #ef4f43;
 }
 
+.alert-banner.is-success {
+  border-color: #9ad7b1;
+  background: #f0fff5;
+  color: #147a3d;
+}
+
 .alert-banner p {
+  margin: 0;
   font-size: 0.95rem;
   line-height: 1.45;
 }
@@ -147,11 +154,24 @@
   margin-bottom: 9px;
 }
 
-.field-head a {
+.field-head a,
+.text-link-button {
   font-size: 0.86rem;
   font-weight: 600;
   color: #0b8bff;
   text-decoration: none;
+}
+
+.text-link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.text-link-button:hover,
+.back-button:hover {
+  color: #0477d9;
 }
 
 .input-wrap {
@@ -227,6 +247,91 @@
   background: #1687e3;
   transform: translateY(-1px);
   box-shadow: 0 16px 30px rgba(36, 146, 235, 0.22);
+}
+
+.submit-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+  transform: none;
+  box-shadow: none;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #5d6880;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.18s ease;
+}
+
+.back-icon,
+.info-icon {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.back-icon svg,
+.info-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.recovery-shell {
+  width: min(100%, 420px);
+}
+
+.info-panel {
+  margin-top: 24px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px;
+  border: 1px solid #cfe0f4;
+  border-radius: 14px;
+  background: #f6fbff;
+  color: #356681;
+}
+
+.info-icon {
+  margin-top: 2px;
+  color: #2292f2;
+}
+
+.info-panel p,
+.recovery-support p {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.5;
+}
+
+.recovery-form {
+  margin-top: 26px;
+}
+
+.recovery-support {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid #dbe3ee;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: #5d6880;
+}
+
+.recovery-support svg {
+  flex: 0 0 17px;
+  width: 17px;
+  height: 17px;
+  margin-top: 3px;
 }
 
 .form-footer {
@@ -327,6 +432,11 @@
   .form-footer {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .field-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .footer-links {

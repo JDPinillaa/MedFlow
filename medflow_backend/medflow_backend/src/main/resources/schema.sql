@@ -66,12 +66,12 @@ CREATE TABLE IF NOT EXISTS `citas` (
   `paciente_id` int NOT NULL,
   `procedimiento_id` int NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `FKa0culq17omm7ln12kktrip4em` (`doctor_id`),
-  KEY `FKnqrsxxcuysfcxiekvixm7h8r1` (`paciente_id`),
-  KEY `FKllkd41ffg9sk7hxbwnamrnfyg` (`procedimiento_id`),
-  CONSTRAINT `FKa0culq17omm7ln12kktrip4em` FOREIGN KEY (`doctor_id`) REFERENCES `doctores` (`id`),
-  CONSTRAINT `FKnqrsxxcuysfcxiekvixm7h8r1` FOREIGN KEY (`paciente_id`) REFERENCES `pacientes` (`id`),
-  CONSTRAINT `FKllkd41ffg9sk7hxbwnamrnfyg` FOREIGN KEY (`procedimiento_id`) REFERENCES `procedimientos` (`id`)
+  KEY `idx_citas_doctor` (`doctor_id`),
+  KEY `idx_citas_paciente` (`paciente_id`),
+  KEY `idx_citas_procedimiento` (`procedimiento_id`),
+  CONSTRAINT `fk_citas_doctor` FOREIGN KEY (`doctor_id`) REFERENCES `doctores` (`id`),
+  CONSTRAINT `fk_citas_paciente` FOREIGN KEY (`paciente_id`) REFERENCES `pacientes` (`id`),
+  CONSTRAINT `fk_citas_procedimiento` FOREIGN KEY (`procedimiento_id`) REFERENCES `procedimientos` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `eventos_calendario` (
@@ -82,8 +82,8 @@ CREATE TABLE IF NOT EXISTS `eventos_calendario` (
   `titulo` varchar(150) NOT NULL,
   `doctor_id` int NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `FK11xlxjjoffpeel21ao5w8388g` (`doctor_id`),
-  CONSTRAINT `FK11xlxjjoffpeel21ao5w8388g` FOREIGN KEY (`doctor_id`) REFERENCES `doctores` (`id`)
+  KEY `idx_eventos_calendario_doctor` (`doctor_id`),
+  CONSTRAINT `fk_eventos_calendario_doctor` FOREIGN KEY (`doctor_id`) REFERENCES `doctores` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `historias_clinicas` (
@@ -96,10 +96,10 @@ CREATE TABLE IF NOT EXISTS `historias_clinicas` (
   `datos_relevantes` text NOT NULL,
   `diagnostico` text NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `UK2v09fptijg4p3nws06297uol4` (`cita_id`),
-  KEY `FKg1khn522eg7918px2b46n8mh2` (`doctor_id`),
-  KEY `FKr14j0egr7g6kw0h3r2jb1ft55` (`paciente_id`),
-  CONSTRAINT `FK575fsj4ihg5ptmjun1jwp7q6g` FOREIGN KEY (`cita_id`) REFERENCES `citas` (`id`),
-  CONSTRAINT `FKg1khn522eg7918px2b46n8mh2` FOREIGN KEY (`doctor_id`) REFERENCES `doctores` (`id`),
-  CONSTRAINT `FKr14j0egr7g6kw0h3r2jb1ft55` FOREIGN KEY (`paciente_id`) REFERENCES `pacientes` (`id`)
+  UNIQUE KEY `uk_historias_clinicas_cita` (`cita_id`),
+  KEY `idx_historias_clinicas_doctor` (`doctor_id`),
+  KEY `idx_historias_clinicas_paciente` (`paciente_id`),
+  CONSTRAINT `fk_historias_clinicas_cita` FOREIGN KEY (`cita_id`) REFERENCES `citas` (`id`),
+  CONSTRAINT `fk_historias_clinicas_doctor` FOREIGN KEY (`doctor_id`) REFERENCES `doctores` (`id`),
+  CONSTRAINT `fk_historias_clinicas_paciente` FOREIGN KEY (`paciente_id`) REFERENCES `pacientes` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import './Login.css'
 import logo from '../assets/logo.png'
 
@@ -30,6 +31,43 @@ function MailIcon() {
         fill="none"
         stroke="currentColor"
         strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function ArrowLeftIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M15.5 5.5 9 12l6.5 6.5M9.5 12H20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function ShieldIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 3.75 18.75 6v5.35c0 4.05-2.65 7.72-6.75 8.9-4.1-1.18-6.75-4.85-6.75-8.9V6L12 3.75Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m9.25 12.1 1.75 1.75 3.9-4.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -88,7 +126,7 @@ function PulseMark() {
   )
 }
 
-function Login() {
+function AuthLayout({ children }) {
   return (
     <main className="login-page">
       <section className="brand-panel">
@@ -103,60 +141,136 @@ function Login() {
             en una sola plataforma segura e intuitiva.
           </p>
         </div>
-
-        
       </section>
 
-      <section className="form-panel">
+      <section className="form-panel">{children}</section>
+    </main>
+  )
+}
+
+function Login({ apiBaseUrl, onForgotPassword, onLogin }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [rememberSession, setRememberSession] = useState(false)
+  const [status, setStatus] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+
+    if (isSubmitting) {
+      return
+    }
+
+    setStatus(null)
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
+      })
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        throw new Error(payload?.mensaje ?? 'No fue posible iniciar sesion.')
+      }
+
+      onLogin(payload, rememberSession)
+      setStatus({
+        type: 'success',
+        message: 'Sesion iniciada correctamente.',
+      })
+    } catch (error) {
+      setStatus({
+        type: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'No fue posible iniciar sesion.',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <AuthLayout>
         <div className="form-shell">
           <div className="form-header">
             <h2>Iniciar Sesión</h2>
             <p>Ingrese sus credenciales para acceder al sistema.</p>
           </div>
 
-          <div className="alert-banner" role="alert">
-            <span className="alert-icon">
-              <AlertIcon />
-            </span>
-            <p>
-              Credenciales no válidas. Por favor, verifique su usuario y
-              contraseña.
-            </p>
-          </div>
+          {status ? (
+            <div
+              className={`alert-banner is-${status.type}`}
+              role={status.type === 'error' ? 'alert' : 'status'}
+            >
+              <span className="alert-icon">
+                <AlertIcon />
+              </span>
+              <p>{status.message}</p>
+            </div>
+          ) : null}
 
-          <form className="login-form">
+          <form className="login-form" onSubmit={handleSubmit}>
             <label className="field">
               <span className="field-label">Correo Electrónico</span>
               <span className="input-wrap">
                 <span className="input-icon">
                   <MailIcon />
                 </span>
-                <input type="email" defaultValue="" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="email"
+                  required
+                />
               </span>
             </label>
 
             <div className="field-group">
               <div className="field-head">
                 <span className="field-label">Contraseña</span>
-                <a href="/">¿Olvidó su contraseña?</a>
+                <button type="button" className="text-link-button" onClick={onForgotPassword}>
+                  ¿Olvidó su contraseña?
+                </button>
               </div>
               <label className="field">
                 <span className="input-wrap">
                   <span className="input-icon">
                     <LockIcon />
                   </span>
-                  <input type="password" defaultValue="" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="current-password"
+                    required
+                  />
                 </span>
               </label>
             </div>
 
             <label className="checkbox-row">
-              <input type="checkbox" />
+              <input
+                type="checkbox"
+                checked={rememberSession}
+                onChange={(event) => setRememberSession(event.target.checked)}
+              />
               <span>Recordar mi sesión en este dispositivo</span>
             </label>
 
-            <button type="submit" className="submit-button">
-              Ingresar
+            <button type="submit" className="submit-button" disabled={isSubmitting}>
+              {isSubmitting ? 'Ingresando...' : 'Ingresar'}
             </button>
           </form>
 
@@ -175,8 +289,95 @@ function Login() {
             <PulseMark />
           </div>
         </div>
-      </section>
-    </main>
+    </AuthLayout>
+  )
+}
+
+export function PasswordRecovery({ onBackToLogin }) {
+  const [email, setEmail] = useState('')
+  const [status, setStatus] = useState(null)
+
+  function handleSubmit(event) {
+    event.preventDefault()
+      setStatus({
+        type: 'success',
+        message:
+        'Si el correo pertenece a una cuenta activa, enviaremos un código de verificación para continuar con el cambio de contraseña.',
+    })
+  }
+
+  return (
+    <AuthLayout>
+      <div className="form-shell recovery-shell">
+        <button type="button" className="back-button" onClick={onBackToLogin}>
+          <span className="back-icon">
+            <ArrowLeftIcon />
+          </span>
+          Volver al inicio de sesión
+        </button>
+
+        <div className="form-header">
+          <h2>Recuperar contraseña</h2>
+          <p>
+            Ingrese el correo electrónico asociado a su cuenta para recibir el código
+            de verificación.
+          </p>
+        </div>
+
+        <div className="info-panel">
+          <span className="info-icon">
+            <ShieldIcon />
+          </span>
+          <p>
+            El código será enviado a su bandeja de entrada. Si no reconoce o no
+            tiene acceso a ese correo, comuníquese con el administrador del sistema.
+          </p>
+        </div>
+
+        {status ? (
+          <div className="alert-banner is-success" role="status">
+            <span className="alert-icon">
+              <AlertIcon />
+            </span>
+            <p>{status.message}</p>
+          </div>
+        ) : null}
+
+        <form className="login-form recovery-form" onSubmit={handleSubmit}>
+          <label className="field">
+            <span className="field-label">Correo Electrónico</span>
+            <span className="input-wrap">
+              <span className="input-icon">
+                <MailIcon />
+              </span>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="email"
+                required
+              />
+            </span>
+          </label>
+
+          <button type="submit" className="submit-button">
+            Enviar código
+          </button>
+        </form>
+
+        <div className="recovery-support">
+          <HelpIcon />
+          <p>
+            Si necesita ayuda para confirmar su correo institucional, contacte al
+            administrador antes de solicitar un nuevo código.
+          </p>
+        </div>
+
+        <div className="pulse-mark">
+          <PulseMark />
+        </div>
+      </div>
+    </AuthLayout>
   )
 }
 
