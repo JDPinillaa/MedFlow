@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './App.css'
+import Dashboard from './components/Dashboard'
 import Login, { PasswordRecovery } from './components/Login'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1'
@@ -50,27 +51,7 @@ function App() {
   }
 
   if (session) {
-    return (
-      <main className="session-page">
-        <section className="session-card" aria-live="polite">
-          <p className="session-kicker">MedFlow</p>
-          <h1>Sesión iniciada</h1>
-          <dl>
-            <div>
-              <dt>Usuario</dt>
-              <dd>{session.email}</dd>
-            </div>
-            <div>
-              <dt>Rol</dt>
-              <dd>{session.rol}</dd>
-            </div>
-          </dl>
-          <button type="button" onClick={handleLogout}>
-            Cerrar sesión
-          </button>
-        </section>
-      </main>
-    )
+    return <Dashboard apiBaseUrl={API_BASE_URL} onLogout={handleLogout} session={session} />
   }
 
   if (authView === 'recovery') {
