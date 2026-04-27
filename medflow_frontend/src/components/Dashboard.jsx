@@ -30,9 +30,30 @@ const FALLBACK_APPOINTMENTS = [
 ]
 
 const FALLBACK_PATIENTS = [
-  { id: 'patient-1', nombreCompleto: 'Ana Perez' },
-  { id: 'patient-2', nombreCompleto: 'Carlos Ramirez' },
-  { id: 'patient-3', nombreCompleto: 'Maria Torres' },
+  {
+    id: 'patient-1',
+    nombreCompleto: 'Ana Perez',
+    documento: 'CC-1001001001',
+    telefono: '3001234567',
+    email: 'ana.perez@correo.com',
+    direccion: 'Calle 10 # 20-30, Bogota',
+  },
+  {
+    id: 'patient-2',
+    nombreCompleto: 'Carlos Ramirez',
+    documento: 'CC-1001001002',
+    telefono: '3001234568',
+    email: 'carlos.ramirez@correo.com',
+    direccion: 'Carrera 15 # 45-20, Bogota',
+  },
+  {
+    id: 'patient-3',
+    nombreCompleto: 'Maria Torres',
+    documento: 'CC-1001001003',
+    telefono: '3001234569',
+    email: 'maria.torres@correo.com',
+    direccion: 'Avenida 68 # 90-15, Bogota',
+  },
 ]
 
 const FALLBACK_DOCTORS = [
@@ -58,6 +79,33 @@ function fetchWithAuth(apiBaseUrl, token, path, signal) {
   }).then(async (response) => {
     if (!response.ok) {
       throw new Error(`No fue posible cargar ${path}`)
+    }
+
+    return response.json()
+  })
+}
+
+function requestWithAuth(apiBaseUrl, token, path, options = {}) {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    ...options.headers,
+  }
+
+  if (options.body) {
+    headers['Content-Type'] = 'application/json'
+  }
+
+  return fetch(`${apiBaseUrl}${path}`, {
+    ...options,
+    headers,
+  }).then(async (response) => {
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null)
+      throw new Error(payload?.mensaje ?? 'No fue posible completar la operación.')
+    }
+
+    if (response.status === 204) {
+      return null
     }
 
     return response.json()
@@ -132,6 +180,20 @@ function formatTime(value) {
   }).format(date)
 }
 
+function formatShortDate(value) {
+  const date = parseDate(value)
+
+  if (!date) {
+    return 'Sin registro'
+  }
+
+  return new Intl.DateTimeFormat('es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
 function formatStatus(status) {
   return status
     ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
@@ -195,6 +257,60 @@ function buildChartPath(values) {
   return { area, line, maxValue }
 }
 
+function getPatientAppointmentCount(patientId, appointments) {
+  return appointments.filter((appointment) => appointment.pacienteId === patientId).length
+}
+
+function getPatientLastAppointment(patientId, appointments) {
+  return appointments
+    .filter((appointment) => appointment.pacienteId === patientId)
+    .map((appointment) => parseDate(appointment.fechaHora))
+    .filter(Boolean)
+    .sort((first, second) => second - first)[0]
+}
+
+function patientMatchesSearch(patient, searchTerm) {
+  const normalizedTerm = searchTerm.trim().toLowerCase()
+
+  if (!normalizedTerm) {
+    return true
+  }
+
+  return [patient.nombreCompleto, patient.documento, patient.telefono, patient.email]
+    .filter(Boolean)
+    .some((value) => value.toLowerCase().includes(normalizedTerm))
+}
+
+function buildPatientPayload(formValues) {
+  return {
+    nombreCompleto: formValues.nombreCompleto.trim(),
+    documento: formValues.documento.trim(),
+    telefono: formValues.telefono.trim(),
+    email: formValues.email.trim(),
+    direccion: formValues.direccion.trim(),
+  }
+}
+
+function getEmptyPatientForm() {
+  return {
+    nombreCompleto: '',
+    documento: '',
+    telefono: '',
+    email: '',
+    direccion: '',
+  }
+}
+
+function getPatientFormFromRecord(patient) {
+  return {
+    nombreCompleto: patient.nombreCompleto ?? '',
+    documento: patient.documento ?? '',
+    telefono: patient.telefono ?? '',
+    email: patient.email ?? '',
+    direccion: patient.direccion ?? '',
+  }
+}
+
 function Dashboard({ apiBaseUrl, onLogout, session }) {
   const [activeNav, setActiveNav] = useState('dashboard')
   const [data, setData] = useState({
@@ -205,6 +321,13 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
   const [loading, setLoading] = useState(true)
   const [syncError, setSyncError] = useState(null)
   const [quickMessage, setQuickMessage] = useState(null)
+  const [patientSearch, setPatientSearch] = useState('')
+  const [patientForm, setPatientForm] = useState(getEmptyPatientForm)
+  const [patientFormOpen, setPatientFormOpen] = useState(false)
+  const [patientFeedback, setPatientFeedback] = useState(null)
+  const [selectedPatient, setSelectedPatient] = useState(null)
+  const [editingPatient, setEditingPatient] = useState(null)
+  const [savingPatient, setSavingPatient] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -273,6 +396,36 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
     }
   }, [data])
 
+  const patientMetrics = useMemo(() => {
+    const activePatientIds = new Set(
+      metrics.activeAppointments.map((appointment) => appointment.pacienteId).filter(Boolean),
+    )
+    const attendedPatientIds = new Set(
+      data.appointments
+        .filter((appointment) => appointment.estado === 'COMPLETADA')
+        .map((appointment) => appointment.pacienteId)
+        .filter(Boolean),
+    )
+    const returningPatients = data.patients.filter(
+      (patient) => getPatientAppointmentCount(patient.id, data.appointments) > 1,
+    ).length
+    const returnRate = data.patients.length
+      ? Math.round((returningPatients / data.patients.length) * 100)
+      : 0
+
+    return {
+      activePatients: activePatientIds.size,
+      attendedPatients: attendedPatientIds.size,
+      returnRate,
+      totalPatients: data.patients.length,
+    }
+  }, [data.appointments, data.patients, metrics.activeAppointments])
+
+  const visiblePatients = useMemo(
+    () => data.patients.filter((patient) => patientMatchesSearch(patient, patientSearch)),
+    [data.patients, patientSearch],
+  )
+
   const weeklyData = useMemo(
     () => buildWeeklyData(metrics.activeAppointments),
     [metrics.activeAppointments],
@@ -286,6 +439,491 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
 
   function handleQuickAction(message) {
     setQuickMessage(message)
+  }
+
+  function handleNavClick(itemId) {
+    if (itemId === 'dashboard' || itemId === 'pacientes') {
+      setActiveNav(itemId)
+      setQuickMessage(null)
+      setPatientFeedback(null)
+      return
+    }
+
+    setActiveNav('dashboard')
+    setQuickMessage(`El módulo ${itemId} quedará integrado en la siguiente fase.`)
+  }
+
+  function openNewPatientForm() {
+    setEditingPatient(null)
+    setSelectedPatient(null)
+    setPatientFeedback(null)
+    setPatientForm(getEmptyPatientForm())
+    setPatientFormOpen(true)
+    setActiveNav('pacientes')
+  }
+
+  function openEditPatientForm(patient) {
+    setEditingPatient(patient)
+    setSelectedPatient(null)
+    setPatientFeedback(null)
+    setPatientForm(getPatientFormFromRecord(patient))
+    setPatientFormOpen(true)
+  }
+
+  function closePatientForm() {
+    setPatientFormOpen(false)
+    setEditingPatient(null)
+    setPatientForm(getEmptyPatientForm())
+  }
+
+  function updatePatientForm(field, value) {
+    setPatientForm((currentForm) => ({
+      ...currentForm,
+      [field]: value,
+    }))
+  }
+
+  async function refreshPatients() {
+    const [patients, appointments] = await Promise.all([
+      fetchWithAuth(apiBaseUrl, session.token, '/pacientes'),
+      fetchWithAuth(apiBaseUrl, session.token, '/citas'),
+    ])
+
+    setData((currentData) => ({
+      ...currentData,
+      appointments,
+      patients,
+    }))
+  }
+
+  async function handlePatientSubmit(event) {
+    event.preventDefault()
+    setSavingPatient(true)
+    setPatientFeedback(null)
+
+    try {
+      const payload = buildPatientPayload(patientForm)
+      const path = editingPatient ? `/pacientes/${editingPatient.id}` : '/pacientes'
+      const method = editingPatient ? 'PUT' : 'POST'
+
+      await requestWithAuth(apiBaseUrl, session.token, path, {
+        method,
+        body: JSON.stringify(payload),
+      })
+      await refreshPatients()
+      setPatientFeedback({
+        type: 'success',
+        message: editingPatient
+          ? 'Paciente actualizado correctamente.'
+          : 'Paciente registrado correctamente.',
+      })
+      closePatientForm()
+    } catch (error) {
+      setPatientFeedback({
+        type: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'No fue posible guardar el paciente.',
+      })
+    } finally {
+      setSavingPatient(false)
+    }
+  }
+
+  async function handleDeletePatient(patient) {
+    const confirmed = window.confirm(
+      `¿Eliminar a ${patient.nombreCompleto}? Esta acción no se puede deshacer.`,
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      await requestWithAuth(apiBaseUrl, session.token, `/pacientes/${patient.id}`, {
+        method: 'DELETE',
+      })
+      await refreshPatients()
+      setSelectedPatient(null)
+      setPatientFeedback({
+        type: 'success',
+        message: 'Paciente eliminado correctamente.',
+      })
+    } catch (error) {
+      setPatientFeedback({
+        type: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'No fue posible eliminar el paciente.',
+      })
+    }
+  }
+
+  function exportPatients() {
+    const rows = [
+      ['Nombre', 'Documento', 'Telefono', 'Email', 'Direccion'],
+      ...visiblePatients.map((patient) => [
+        patient.nombreCompleto,
+        patient.documento,
+        patient.telefono,
+        patient.email,
+        patient.direccion,
+      ]),
+    ]
+    const csv = rows
+      .map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+
+    link.href = url
+    link.download = 'pacientes-medflow.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function renderDashboardContent() {
+    return (
+      <>
+        <section className="dashboard-intro">
+          <div>
+            <h2>Resumen clínico</h2>
+            <p>
+              Actividad sincronizada para hoy, {todayLabel}. Priorice citas,
+              pacientes y disponibilidad del consultorio.
+            </p>
+          </div>
+          <span className={loading ? 'sync-pill is-loading' : 'sync-pill'}>
+            {loading ? 'Sincronizando' : 'Datos actualizados'}
+          </span>
+        </section>
+
+        {syncError ? <p className="dashboard-notice">{syncError}</p> : null}
+        {quickMessage ? <p className="dashboard-notice is-action">{quickMessage}</p> : null}
+
+        <section className="metric-grid" aria-label="Métricas principales">
+          <MetricCard
+            icon={ClockIcon}
+            label="Citas hoy"
+            tone="blue"
+            trend={`${metrics.upcomingAppointments.length} próximas`}
+            value={metrics.appointmentsToday}
+          />
+          <MetricCard
+            icon={UsersIcon}
+            label="Pacientes totales"
+            tone="green"
+            trend={`${metrics.totalDoctors} doctores activos`}
+            value={metrics.totalPatients}
+          />
+          <MetricCard
+            icon={ActivityIcon}
+            label="Consultas completadas"
+            tone="violet"
+            trend={`${metrics.activeAppointments.length} citas registradas`}
+            value={metrics.completedAppointments}
+          />
+        </section>
+
+        <div className="dashboard-grid">
+          <section className="dashboard-column">
+            <div className="quick-actions" aria-label="Accesos rápidos">
+              <div className="section-heading">
+                <h2>Accesos rápidos</h2>
+                <p>Acciones frecuentes para mantener la operación al día.</p>
+              </div>
+
+              <div className="quick-grid">
+                <button type="button" className="quick-action is-patient" onClick={openNewPatientForm}>
+                  <span>
+                    <UsersIcon />
+                  </span>
+                  <strong>Registrar paciente</strong>
+                  <small>Añadir nuevo registro clínico</small>
+                </button>
+                <button
+                  type="button"
+                  className="quick-action is-appointment"
+                  onClick={() =>
+                    handleQuickAction('El módulo de citas quedó señalado para la siguiente pantalla del flujo.')
+                  }
+                >
+                  <span>
+                    <PlusCircleIcon />
+                  </span>
+                  <strong>Agendar cita</strong>
+                  <small>Reservar un espacio disponible</small>
+                </button>
+              </div>
+            </div>
+
+            <section className="appointments-panel">
+              <div className="section-heading is-row">
+                <div>
+                  <h2>Próximas citas</h2>
+                  <p>Pacientes programados en las siguientes jornadas.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleQuickAction('La agenda completa se conectará desde el módulo Calendario.')}
+                >
+                  Ver todas
+                </button>
+              </div>
+
+              <div className="appointment-list">
+                {metrics.upcomingAppointments.slice(0, 4).map((appointment) => (
+                  <article className="appointment-row" key={appointment.id}>
+                    <span className="appointment-avatar">
+                      {getInitials(appointment.pacienteNombre)}
+                    </span>
+                    <span className="appointment-patient">
+                      <strong>{appointment.pacienteNombre}</strong>
+                      <small>{appointment.procedimientoNombre}</small>
+                    </span>
+                    <span className="appointment-time">
+                      <ClockIcon />
+                      {formatTime(appointment.fechaHora)}
+                    </span>
+                    <span className={`status-badge ${getStatusClass(appointment.estado)}`}>
+                      {formatStatus(appointment.estado)}
+                    </span>
+                  </article>
+                ))}
+
+                {metrics.upcomingAppointments.length === 0 ? (
+                  <p className="empty-state">No hay citas activas próximas.</p>
+                ) : null}
+              </div>
+            </section>
+          </section>
+
+          <aside className="dashboard-rail" aria-label="Indicadores secundarios">
+            <WeeklyChart chart={chart} weeklyData={weeklyData} />
+
+            <section className="reminders-panel">
+              <div className="section-heading">
+                <h2>Recordatorios</h2>
+                <p>Seguimientos sugeridos para la jornada.</p>
+              </div>
+              <ul>
+                <li>Confirmar asistencia de pacientes con cita programada.</li>
+                <li>Revisar historias clínicas pendientes antes del cierre.</li>
+                <li>Validar disponibilidad del consultorio para la tarde.</li>
+              </ul>
+            </section>
+
+            <section className="office-panel">
+              <div className="section-heading">
+                <h2>Estado del consultorio</h2>
+                <p>Disponibilidad estimada para nuevas citas.</p>
+              </div>
+              <div className="office-meter">
+                <span>Disponibilidad hoy</span>
+                <strong>{metrics.availability}%</strong>
+              </div>
+              <div className="progress-track">
+                <span style={{ width: `${metrics.availability}%` }} />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleQuickAction('Calendario marcado como siguiente vista prioritaria.')}
+              >
+                Ver calendario completo
+                <CalendarIcon />
+              </button>
+            </section>
+          </aside>
+        </div>
+      </>
+    )
+  }
+
+  function renderPatientsContent() {
+    return (
+      <>
+        <section className="dashboard-intro patient-intro">
+          <div>
+            <h2>Gestión de pacientes</h2>
+            <p>Administre el directorio, datos de contacto e historial de atención del consultorio.</p>
+          </div>
+          <div className="patient-toolbar">
+            <button type="button" className="secondary-action" onClick={exportPatients}>
+              <DownloadIcon />
+              Exportar
+            </button>
+            <button type="button" className="primary-action" onClick={openNewPatientForm}>
+              <PlusCircleIcon />
+              Nuevo paciente
+            </button>
+          </div>
+        </section>
+
+        {patientFeedback ? (
+          <p className={`dashboard-notice ${patientFeedback.type === 'success' ? 'is-action' : ''}`}>
+            {patientFeedback.message}
+          </p>
+        ) : null}
+
+        <section className="metric-grid patient-metrics" aria-label="Indicadores de pacientes">
+          <MetricCard
+            icon={UsersIcon}
+            label="Total pacientes"
+            tone="blue"
+            trend="Directorio registrado"
+            value={patientMetrics.totalPatients}
+          />
+          <MetricCard
+            icon={ActivityIcon}
+            label="Con cita activa"
+            tone="green"
+            trend="En seguimiento actual"
+            value={patientMetrics.activePatients}
+          />
+          <MetricCard
+            icon={ClockIcon}
+            label="Pacientes atendidos"
+            tone="violet"
+            trend={`${patientMetrics.returnRate}% tasa de retorno`}
+            value={patientMetrics.attendedPatients}
+          />
+        </section>
+
+        <section className="patients-panel">
+          <div className="patients-panel-toolbar">
+            <label className="patient-search">
+              <SearchIcon />
+              <input
+                type="search"
+                placeholder="Buscar por nombre, documento, correo o teléfono..."
+                value={patientSearch}
+                onChange={(event) => setPatientSearch(event.target.value)}
+              />
+            </label>
+            <div className="patient-table-status">
+              <FilterIcon />
+              <span>Mostrando {visiblePatients.length} de {data.patients.length}</span>
+            </div>
+          </div>
+
+          <div className="patients-table-wrap">
+            <table className="patients-table">
+              <thead>
+                <tr>
+                  <th>Paciente</th>
+                  <th>Identificación</th>
+                  <th>Contacto</th>
+                  <th>Última cita</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visiblePatients.map((patient) => {
+                  const lastAppointment = getPatientLastAppointment(patient.id, data.appointments)
+                  const isActive = metrics.activeAppointments.some(
+                    (appointment) => appointment.pacienteId === patient.id,
+                  )
+
+                  return (
+                    <tr key={patient.id}>
+                      <td>
+                        <span className="patient-cell">
+                          <span className="patient-avatar">{getInitials(patient.nombreCompleto)}</span>
+                          <span>
+                            <strong>{patient.nombreCompleto}</strong>
+                            <small>{patient.email}</small>
+                          </span>
+                        </span>
+                      </td>
+                      <td>{patient.documento}</td>
+                      <td>{patient.telefono}</td>
+                      <td>{formatShortDate(lastAppointment)}</td>
+                      <td>
+                        <span className={`patient-state ${isActive ? 'is-active' : ''}`}>
+                          {isActive ? 'Activo' : 'Sin cita activa'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="patient-actions">
+                          <button
+                            type="button"
+                            aria-label={`Ver ${patient.nombreCompleto}`}
+                            onClick={() => {
+                              setSelectedPatient(patient)
+                              setPatientFormOpen(false)
+                            }}
+                          >
+                            <EyeIcon />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Editar ${patient.nombreCompleto}`}
+                            onClick={() => openEditPatientForm(patient)}
+                          >
+                            <EditIcon />
+                          </button>
+                          <button
+                            type="button"
+                            className="is-danger"
+                            aria-label={`Eliminar ${patient.nombreCompleto}`}
+                            onClick={() => handleDeletePatient(patient)}
+                          >
+                            <TrashIcon />
+                          </button>
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {visiblePatients.length === 0 ? (
+            <p className="empty-state">No encontramos pacientes con esos criterios.</p>
+          ) : null}
+        </section>
+
+        {(patientFormOpen || selectedPatient) ? (
+          <section className="patient-detail-panel">
+            {patientFormOpen ? (
+              <PatientForm
+                editingPatient={editingPatient}
+                formValues={patientForm}
+                onCancel={closePatientForm}
+                onChange={updatePatientForm}
+                onSubmit={handlePatientSubmit}
+                saving={savingPatient}
+              />
+            ) : (
+              <PatientDetail
+                appointments={data.appointments}
+                onClose={() => setSelectedPatient(null)}
+                onEdit={() => openEditPatientForm(selectedPatient)}
+                patient={selectedPatient}
+              />
+            )}
+          </section>
+        ) : (
+          <section className="patient-guidance">
+            <span>
+              <UsersIcon />
+            </span>
+            <div>
+              <h3>Atención personalizada</h3>
+              <p>
+                Seleccione un paciente para revisar su información o registre uno nuevo
+                para mantener actualizado el directorio clínico.
+              </p>
+            </div>
+          </section>
+        )}
+      </>
+    )
   }
 
   return (
@@ -305,7 +943,7 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
                 type="button"
                 className={activeNav === item.id ? 'is-active' : ''}
                 key={item.id}
-                onClick={() => setActiveNav(item.id)}
+                onClick={() => handleNavClick(item.id)}
               >
                 <Icon />
                 <span>{item.label}</span>
@@ -345,184 +983,7 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
         </header>
 
         <div className="dashboard-content">
-          <section className="dashboard-intro">
-            <div>
-              <h2>Resumen clínico</h2>
-              <p>
-                Actividad sincronizada para hoy, {todayLabel}. Priorice citas,
-                pacientes y disponibilidad del consultorio.
-              </p>
-            </div>
-            <span className={loading ? 'sync-pill is-loading' : 'sync-pill'}>
-              {loading ? 'Sincronizando' : 'Datos actualizados'}
-            </span>
-          </section>
-
-          {syncError ? <p className="dashboard-notice">{syncError}</p> : null}
-          {quickMessage ? <p className="dashboard-notice is-action">{quickMessage}</p> : null}
-
-          <section className="metric-grid" aria-label="Métricas principales">
-            <MetricCard
-              icon={ClockIcon}
-              label="Citas hoy"
-              tone="blue"
-              trend={`${metrics.upcomingAppointments.length} próximas`}
-              value={metrics.appointmentsToday}
-            />
-            <MetricCard
-              icon={UsersIcon}
-              label="Pacientes totales"
-              tone="green"
-              trend={`${metrics.totalDoctors} doctores activos`}
-              value={metrics.totalPatients}
-            />
-            <MetricCard
-              icon={ActivityIcon}
-              label="Consultas completadas"
-              tone="violet"
-              trend={`${metrics.activeAppointments.length} citas registradas`}
-              value={metrics.completedAppointments}
-            />
-          </section>
-
-          <div className="dashboard-grid">
-            <section className="dashboard-column">
-              <div className="quick-actions" aria-label="Accesos rápidos">
-                <div className="section-heading">
-                  <h2>Accesos rápidos</h2>
-                  <p>Acciones frecuentes para mantener la operación al día.</p>
-                </div>
-
-                <div className="quick-grid">
-                  <button
-                    type="button"
-                    className="quick-action is-patient"
-                    onClick={() =>
-                      handleQuickAction('El módulo de pacientes quedó listo para conectarse al formulario de registro.')
-                    }
-                  >
-                    <span>
-                      <UsersIcon />
-                    </span>
-                    <strong>Registrar paciente</strong>
-                    <small>Añadir nuevo registro clínico</small>
-                  </button>
-                  <button
-                    type="button"
-                    className="quick-action is-appointment"
-                    onClick={() =>
-                      handleQuickAction('El módulo de citas quedó señalado para la siguiente pantalla del flujo.')
-                    }
-                  >
-                    <span>
-                      <PlusCircleIcon />
-                    </span>
-                    <strong>Agendar cita</strong>
-                    <small>Reservar un espacio disponible</small>
-                  </button>
-                </div>
-              </div>
-
-              <section className="appointments-panel">
-                <div className="section-heading is-row">
-                  <div>
-                    <h2>Próximas citas</h2>
-                    <p>Pacientes programados en las siguientes jornadas.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickAction('La agenda completa se conectará desde el módulo Calendario.')}
-                  >
-                    Ver todas
-                  </button>
-                </div>
-
-                <div className="appointment-list">
-                  {metrics.upcomingAppointments.slice(0, 4).map((appointment) => (
-                    <article className="appointment-row" key={appointment.id}>
-                      <span className="appointment-avatar">
-                        {getInitials(appointment.pacienteNombre)}
-                      </span>
-                      <span className="appointment-patient">
-                        <strong>{appointment.pacienteNombre}</strong>
-                        <small>{appointment.procedimientoNombre}</small>
-                      </span>
-                      <span className="appointment-time">
-                        <ClockIcon />
-                        {formatTime(appointment.fechaHora)}
-                      </span>
-                      <span className={`status-badge ${getStatusClass(appointment.estado)}`}>
-                        {formatStatus(appointment.estado)}
-                      </span>
-                    </article>
-                  ))}
-
-                  {metrics.upcomingAppointments.length === 0 ? (
-                    <p className="empty-state">No hay citas activas próximas.</p>
-                  ) : null}
-                </div>
-              </section>
-            </section>
-
-            <aside className="dashboard-rail" aria-label="Indicadores secundarios">
-              <section className="chart-panel">
-                <div className="section-heading">
-                  <h2>Afluencia semanal</h2>
-                  <p>Citas activas registradas por día.</p>
-                </div>
-                <svg viewBox="0 0 280 160" role="img" aria-label="Gráfica de afluencia semanal">
-                  <path className="chart-area" d={chart.area} />
-                  <path className="chart-line" d={chart.line} />
-                  {weeklyData.map((value, index) => {
-                    const x = (280 / (weeklyData.length - 1)) * index
-                    const y = 132 - (value / chart.maxValue) * 96 - 18
-
-                    return (
-                      <circle className="chart-dot" cx={x} cy={y} key={WEEK_LABELS[index]} r="3.5" />
-                    )
-                  })}
-                </svg>
-                <div className="chart-labels">
-                  {WEEK_LABELS.map((label) => (
-                    <span key={label}>{label}</span>
-                  ))}
-                </div>
-              </section>
-
-              <section className="reminders-panel">
-                <div className="section-heading">
-                  <h2>Recordatorios</h2>
-                  <p>Seguimientos sugeridos para la jornada.</p>
-                </div>
-                <ul>
-                  <li>Confirmar asistencia de pacientes con cita programada.</li>
-                  <li>Revisar historias clínicas pendientes antes del cierre.</li>
-                  <li>Validar disponibilidad del consultorio para la tarde.</li>
-                </ul>
-              </section>
-
-              <section className="office-panel">
-                <div className="section-heading">
-                  <h2>Estado del consultorio</h2>
-                  <p>Disponibilidad estimada para nuevas citas.</p>
-                </div>
-                <div className="office-meter">
-                  <span>Disponibilidad hoy</span>
-                  <strong>{metrics.availability}%</strong>
-                </div>
-                <div className="progress-track">
-                  <span style={{ width: `${metrics.availability}%` }} />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleQuickAction('Calendario marcado como siguiente vista prioritaria.')}
-                >
-                  Ver calendario completo
-                  <CalendarIcon />
-                </button>
-              </section>
-            </aside>
-          </div>
+          {activeNav === 'pacientes' ? renderPatientsContent() : renderDashboardContent()}
         </div>
 
         <footer className="dashboard-footer">
@@ -549,10 +1010,235 @@ function MetricCard({ icon, label, tone, trend, value }) {
   )
 }
 
+function PatientForm({ editingPatient, formValues, onCancel, onChange, onSubmit, saving }) {
+  return (
+    <form className="patient-form" onSubmit={onSubmit}>
+      <div className="section-heading is-row">
+        <div>
+          <h2>{editingPatient ? 'Editar paciente' : 'Nuevo paciente'}</h2>
+          <p>
+            {editingPatient
+              ? 'Actualice los datos administrativos del paciente.'
+              : 'Complete la información básica para crear el registro.'}
+          </p>
+        </div>
+        <button type="button" className="text-action" onClick={onCancel}>
+          Cancelar
+        </button>
+      </div>
+
+      <div className="patient-form-grid">
+        <label>
+          <span>Nombre completo</span>
+          <input
+            type="text"
+            value={formValues.nombreCompleto}
+            onChange={(event) => onChange('nombreCompleto', event.target.value)}
+            required
+          />
+        </label>
+        <label>
+          <span>Documento</span>
+          <input
+            type="text"
+            value={formValues.documento}
+            onChange={(event) => onChange('documento', event.target.value)}
+            required
+          />
+        </label>
+        <label>
+          <span>Teléfono</span>
+          <input
+            type="tel"
+            value={formValues.telefono}
+            onChange={(event) => onChange('telefono', event.target.value)}
+            required
+          />
+        </label>
+        <label>
+          <span>Correo electrónico</span>
+          <input
+            type="email"
+            value={formValues.email}
+            onChange={(event) => onChange('email', event.target.value)}
+            required
+          />
+        </label>
+        <label className="is-wide">
+          <span>Dirección</span>
+          <input
+            type="text"
+            value={formValues.direccion}
+            onChange={(event) => onChange('direccion', event.target.value)}
+            required
+          />
+        </label>
+      </div>
+
+      <div className="patient-form-actions">
+        <button type="button" className="secondary-action" onClick={onCancel}>
+          Cancelar
+        </button>
+        <button type="submit" className="primary-action" disabled={saving}>
+          {saving ? 'Guardando...' : editingPatient ? 'Guardar cambios' : 'Registrar paciente'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function PatientDetail({ appointments, onClose, onEdit, patient }) {
+  const patientAppointments = appointments
+    .filter((appointment) => appointment.pacienteId === patient.id)
+    .sort((first, second) => parseDate(second.fechaHora) - parseDate(first.fechaHora))
+
+  return (
+    <div className="patient-detail">
+      <div className="section-heading is-row">
+        <div>
+          <h2>Ficha del paciente</h2>
+          <p>Información disponible en el directorio clínico.</p>
+        </div>
+        <button type="button" className="text-action" onClick={onClose}>
+          Cerrar
+        </button>
+      </div>
+
+      <div className="patient-profile">
+        <span className="patient-profile-avatar">{getInitials(patient.nombreCompleto)}</span>
+        <div>
+          <h3>{patient.nombreCompleto}</h3>
+          <p>{patient.email}</p>
+        </div>
+        <button type="button" className="secondary-action" onClick={onEdit}>
+          <EditIcon />
+          Editar
+        </button>
+      </div>
+
+      <dl className="patient-detail-list">
+        <div>
+          <dt>Documento</dt>
+          <dd>{patient.documento}</dd>
+        </div>
+        <div>
+          <dt>Teléfono</dt>
+          <dd>{patient.telefono}</dd>
+        </div>
+        <div>
+          <dt>Dirección</dt>
+          <dd>{patient.direccion}</dd>
+        </div>
+        <div>
+          <dt>Citas registradas</dt>
+          <dd>{patientAppointments.length}</dd>
+        </div>
+      </dl>
+
+      <div className="patient-history">
+        <h3>Historial reciente</h3>
+        {patientAppointments.slice(0, 3).map((appointment) => (
+          <article key={appointment.id}>
+            <span>
+              <strong>{appointment.procedimientoNombre}</strong>
+              <small>{formatShortDate(appointment.fechaHora)} · {formatTime(appointment.fechaHora)}</small>
+            </span>
+            <span className={`status-badge ${getStatusClass(appointment.estado)}`}>
+              {formatStatus(appointment.estado)}
+            </span>
+          </article>
+        ))}
+        {patientAppointments.length === 0 ? (
+          <p className="empty-state">Este paciente aún no tiene citas registradas.</p>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function WeeklyChart({ chart, weeklyData }) {
+  return (
+    <section className="chart-panel">
+      <div className="section-heading">
+        <h2>Afluencia semanal</h2>
+        <p>Citas activas registradas por día.</p>
+      </div>
+      <svg viewBox="0 0 280 160" role="img" aria-label="Gráfica de afluencia semanal">
+        <path className="chart-area" d={chart.area} />
+        <path className="chart-line" d={chart.line} />
+        {weeklyData.map((value, index) => {
+          const x = (280 / (weeklyData.length - 1)) * index
+          const y = 132 - (value / chart.maxValue) * 96 - 18
+
+          return (
+            <circle className="chart-dot" cx={x} cy={y} key={WEEK_LABELS[index]} r="3.5" />
+          )
+        })}
+      </svg>
+      <div className="chart-labels">
+        {WEEK_LABELS.map((label) => (
+          <span key={label}>{label}</span>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function ActivityIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M4 13h4l2-6 4 10 2-4h4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+    </svg>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 4.5v9m0 0 3.5-3.5M12 13.5 8.5 10M5 15.5v2A1.5 1.5 0 0 0 6.5 19h11a1.5 1.5 0 0 0 1.5-1.5v-2" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+    </svg>
+  )
+}
+
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 16.7V19h2.3L17.8 8.5l-2.3-2.3L5 16.7Z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.7" />
+      <path d="m14.4 7.3 2.3 2.3" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+    </svg>
+  )
+}
+
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3.8 12s2.8-5 8.2-5 8.2 5 8.2 5-2.8 5-8.2 5-8.2-5-8.2-5Z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.7" />
+      <circle cx="12" cy="12" r="2.4" fill="none" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  )
+}
+
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 6h14l-5.2 6.1v4.8l-3.6 1.8v-6.6L5 6Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+    </svg>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="10.8" cy="10.8" r="5.8" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <path d="m15.1 15.1 4 4" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 8.5v10m4-10v10m4-10v10M5.5 6h13M9 6V4.5h6V6m-8.5 2.5.7 10.5h9.6l.7-10.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
     </svg>
   )
 }
