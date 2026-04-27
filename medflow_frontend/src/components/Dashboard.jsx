@@ -66,14 +66,49 @@ const FALLBACK_PATIENTS = [
 ]
 
 const FALLBACK_DOCTORS = [
-  { id: 'doctor-1', nombreCompleto: 'Dra. Laura Gomez', especialidad: 'Medicina General' },
-  { id: 'doctor-2', nombreCompleto: 'Dr. Andres Ruiz', especialidad: 'Dermatologia' },
+  {
+    id: 'doctor-1',
+    nombreCompleto: 'Dra. Laura Gomez',
+    especialidad: 'Medicina General',
+    email: 'laura.gomez@medflow.com',
+  },
+  {
+    id: 'doctor-2',
+    nombreCompleto: 'Dr. Andres Ruiz',
+    especialidad: 'Dermatologia',
+    email: 'doctor.prueba@medflow.com',
+  },
 ]
 
 const FALLBACK_PROCEDURES = [
   { id: 'procedure-1', nombre: 'Consulta General', duracionMinutos: 30 },
   { id: 'procedure-2', nombre: 'Control Dermatologico', duracionMinutos: 45 },
   { id: 'procedure-3', nombre: 'Resultados de Laboratorio', duracionMinutos: 25 },
+]
+
+const FALLBACK_CALENDAR_EVENTS = [
+  {
+    id: 'event-fallback-1',
+    tipo: 'EVENTO',
+    titulo: 'Revisión de resultados pendientes',
+    descripcion: 'Bloque reservado para revisar resultados de laboratorio antes de la jornada.',
+    inicio: '2026-05-12T08:00:00',
+    fin: '2026-05-12T08:30:00',
+    doctorId: 'doctor-1',
+    doctorNombre: 'Dra. Laura Gomez',
+    eventoId: 'event-fallback-1',
+  },
+  {
+    id: 'event-fallback-2',
+    tipo: 'EVENTO',
+    titulo: 'Reunión administrativa',
+    descripcion: 'Revisión de disponibilidad y coordinación del consultorio.',
+    inicio: '2026-05-12T15:00:00',
+    fin: '2026-05-12T16:00:00',
+    doctorId: 'doctor-2',
+    doctorNombre: 'Dr. Andres Ruiz',
+    eventoId: 'event-fallback-2',
+  },
 ]
 
 const NAV_ITEMS = [
@@ -84,6 +119,8 @@ const NAV_ITEMS = [
 ]
 
 const WEEK_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+const CALENDAR_HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+const MONTH_WEEK_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
 function fetchWithAuth(apiBaseUrl, token, path, signal) {
   return fetch(`${apiBaseUrl}${path}`, {
@@ -98,6 +135,16 @@ function fetchWithAuth(apiBaseUrl, token, path, signal) {
 
     return response.json()
   })
+}
+
+function fetchCalendarWithAuth(apiBaseUrl, token, doctorId, startDate, endDate, signal) {
+  const params = new URLSearchParams({
+    doctorId: String(doctorId),
+    desde: toLocalDateTimeParam(startDate),
+    hasta: toLocalDateTimeParam(endDate),
+  })
+
+  return fetchWithAuth(apiBaseUrl, token, `/calendario?${params.toString()}`, signal)
 }
 
 function requestWithAuth(apiBaseUrl, token, path, options = {}) {
@@ -225,10 +272,55 @@ function getDateTimeInputValue(value) {
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16)
 }
 
+function toLocalDateTimeParam(date) {
+  return `${getDateTimeInputValue(date)}:00`
+}
+
+function addDays(date, amount) {
+  const nextDate = new Date(date)
+  nextDate.setDate(nextDate.getDate() + amount)
+  return nextDate
+}
+
+function addMinutes(date, amount) {
+  const nextDate = new Date(date)
+  nextDate.setMinutes(nextDate.getMinutes() + amount)
+  return nextDate
+}
+
+function startOfDay(date) {
+  const nextDate = new Date(date)
+  nextDate.setHours(0, 0, 0, 0)
+  return nextDate
+}
+
+function endOfDay(date) {
+  const nextDate = new Date(date)
+  nextDate.setHours(23, 59, 59, 999)
+  return nextDate
+}
+
+function startOfWorkWeek(date) {
+  const nextDate = startOfDay(date)
+  const day = nextDate.getDay()
+  const offset = day === 0 ? -6 : 1 - day
+  return addDays(nextDate, offset)
+}
+
+function endOfMonth(date) {
+  return endOfDay(new Date(date.getFullYear(), date.getMonth() + 1, 0))
+}
+
 function getTomorrowDate() {
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
   return tomorrow
+}
+
+function getNextHourDate() {
+  const date = new Date()
+  date.setHours(date.getHours() + 1, 0, 0, 0)
+  return date
 }
 
 function formatStatus(status) {
@@ -417,10 +509,186 @@ function buildAppointmentPayload(formValues) {
   }
 }
 
+function getCurrentDoctor(doctors, session) {
+  return doctors.find((doctor) => doctor.email === session.email) ?? doctors[0]
+}
+
+function appointmentToCalendarItem(appointment) {
+  const startDate = parseDate(appointment.fechaHora)
+  const duration = appointment.procedimientoDuracionMinutos ?? 30
+
+  return {
+    id: `cita-${appointment.id}`,
+    tipo: 'CITA',
+    titulo: `${appointment.procedimientoNombre} - ${appointment.pacienteNombre}`,
+    descripcion: null,
+    inicio: appointment.fechaHora,
+    fin: startDate ? getDateTimeInputValue(addMinutes(startDate, duration)) : appointment.fechaHora,
+    estado: appointment.estado,
+    doctorId: appointment.doctorId,
+    doctorNombre: appointment.doctorNombre,
+    pacienteId: appointment.pacienteId,
+    pacienteNombre: appointment.pacienteNombre,
+    citaId: appointment.id,
+    eventoId: null,
+    procedimientoId: appointment.procedimientoId,
+    procedimientoNombre: appointment.procedimientoNombre,
+  }
+}
+
+function buildFallbackCalendarItems() {
+  return [
+    ...FALLBACK_APPOINTMENTS.map(appointmentToCalendarItem),
+    ...FALLBACK_CALENDAR_EVENTS,
+  ].sort((first, second) => parseDate(first.inicio) - parseDate(second.inicio))
+}
+
+function getCalendarRange(date, view) {
+  if (view === 'day') {
+    return {
+      start: startOfDay(date),
+      end: endOfDay(date),
+    }
+  }
+
+  if (view === 'month') {
+    return {
+      start: startOfDay(new Date(date.getFullYear(), date.getMonth(), 1)),
+      end: endOfMonth(date),
+    }
+  }
+
+  const weekStart = startOfWorkWeek(date)
+
+  return {
+    start: weekStart,
+    end: endOfDay(addDays(weekStart, 4)),
+  }
+}
+
+function getCalendarDays(date, view) {
+  if (view === 'day') {
+    return [startOfDay(date)]
+  }
+
+  const weekStart = startOfWorkWeek(date)
+  return Array.from({ length: 5 }, (_, index) => addDays(weekStart, index))
+}
+
+function getMonthCalendarDays(date) {
+  const firstDay = startOfDay(new Date(date.getFullYear(), date.getMonth(), 1))
+  const monthStartOffset = firstDay.getDay() === 0 ? -6 : 1 - firstDay.getDay()
+  const gridStart = addDays(firstDay, monthStartOffset)
+
+  return Array.from({ length: 42 }, (_, index) => addDays(gridStart, index))
+}
+
+function getInitialCalendarDate(appointments) {
+  const now = new Date()
+  const upcomingAppointment = appointments
+    .filter((appointment) => appointment.estado !== 'CANCELADA')
+    .map((appointment) => parseDate(appointment.fechaHora))
+    .filter(Boolean)
+    .filter((date) => date >= now)
+    .sort((first, second) => first - second)[0]
+
+  return upcomingAppointment ?? now
+}
+
+function formatCalendarTitle(date, view, days) {
+  if (view === 'day') {
+    return new Intl.DateTimeFormat('es-CO', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(date)
+  }
+
+  if (view === 'month') {
+    return new Intl.DateTimeFormat('es-CO', {
+      month: 'long',
+      year: 'numeric',
+    }).format(date)
+  }
+
+  const firstDay = days[0]
+  const lastDay = days[days.length - 1]
+  const month = new Intl.DateTimeFormat('es-CO', { month: 'long' }).format(firstDay)
+
+  return `${month} ${firstDay.getDate()} - ${lastDay.getDate()}, ${firstDay.getFullYear()}`
+}
+
+function formatWeekdayLabel(date) {
+  return new Intl.DateTimeFormat('es-CO', { weekday: 'long' }).format(date)
+}
+
+function formatCalendarItemRange(item) {
+  return `${formatTime(item.inicio)} - ${formatTime(item.fin)}`
+}
+
+function isCalendarItemOnDay(item, date) {
+  const startDate = parseDate(item.inicio)
+  return startDate ? isSameDay(startDate, date) : false
+}
+
+function getCalendarSlotItems(items, date, hour) {
+  return items.filter((item) => {
+    const startDate = parseDate(item.inicio)
+    return startDate ? isSameDay(startDate, date) && startDate.getHours() === hour : false
+  })
+}
+
+function getCalendarItemClass(item) {
+  if (item.tipo === 'EVENTO') {
+    return 'is-event'
+  }
+
+  if (item.estado === 'COMPLETADA') {
+    return 'is-completed'
+  }
+
+  if (item.estado === 'CANCELADA') {
+    return 'is-cancelled'
+  }
+
+  return 'is-scheduled'
+}
+
+function getDefaultEventStart(calendarDate) {
+  const selectedDate = new Date(calendarDate)
+  selectedDate.setHours(9, 0, 0, 0)
+
+  return selectedDate > new Date() ? selectedDate : getNextHourDate()
+}
+
+function getEmptyCalendarEventForm(calendarDate = new Date()) {
+  const startDate = getDefaultEventStart(calendarDate)
+
+  return {
+    titulo: '',
+    descripcion: '',
+    inicio: getDateTimeInputValue(startDate),
+    fin: getDateTimeInputValue(addMinutes(startDate, 30)),
+  }
+}
+
+function buildCalendarEventPayload(formValues, doctorId) {
+  return {
+    doctorId: toNumericId(doctorId),
+    titulo: formValues.titulo.trim(),
+    descripcion: formValues.descripcion.trim(),
+    inicio: formValues.inicio,
+    fin: formValues.fin,
+  }
+}
+
 function Dashboard({ apiBaseUrl, onLogout, session }) {
   const [activeNav, setActiveNav] = useState('dashboard')
   const [data, setData] = useState({
     appointments: [],
+    calendarItems: [],
+    dashboardCalendarItems: [],
     doctors: [],
     patients: [],
     procedures: [],
@@ -443,6 +711,32 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
   const [editingAppointment, setEditingAppointment] = useState(null)
   const [appointmentFeedback, setAppointmentFeedback] = useState(null)
   const [savingAppointment, setSavingAppointment] = useState(false)
+  const [calendarDate, setCalendarDate] = useState(new Date())
+  const [calendarDateTouched, setCalendarDateTouched] = useState(false)
+  const [calendarView, setCalendarView] = useState('week')
+  const [calendarLoading, setCalendarLoading] = useState(false)
+  const [calendarFeedback, setCalendarFeedback] = useState(null)
+  const [calendarEventForm, setCalendarEventForm] = useState(getEmptyCalendarEventForm)
+  const [calendarEventFormOpen, setCalendarEventFormOpen] = useState(false)
+  const [savingCalendarEvent, setSavingCalendarEvent] = useState(false)
+
+  const currentDoctor = getCurrentDoctor(data.doctors, session)
+  const calendarRange = useMemo(
+    () => getCalendarRange(calendarDate, calendarView),
+    [calendarDate, calendarView],
+  )
+  const calendarDays = useMemo(
+    () => getCalendarDays(calendarDate, calendarView),
+    [calendarDate, calendarView],
+  )
+  const monthCalendarDays = useMemo(
+    () => getMonthCalendarDays(calendarDate),
+    [calendarDate],
+  )
+  const calendarTitle = useMemo(
+    () => formatCalendarTitle(calendarDate, calendarView, calendarDays),
+    [calendarDate, calendarDays, calendarView],
+  )
 
   useEffect(() => {
     const controller = new AbortController()
@@ -459,11 +753,19 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
           fetchWithAuth(apiBaseUrl, session.token, '/procedimientos', controller.signal),
         ])
 
-        setData({ appointments, patients, doctors, procedures })
+        setData((currentData) => ({
+          ...currentData,
+          appointments,
+          patients,
+          doctors,
+          procedures,
+        }))
       } catch (error) {
         if (error.name !== 'AbortError') {
           setData({
             appointments: FALLBACK_APPOINTMENTS,
+            calendarItems: buildFallbackCalendarItems(),
+            dashboardCalendarItems: buildFallbackCalendarItems(),
             patients: FALLBACK_PATIENTS,
             doctors: FALLBACK_DOCTORS,
             procedures: FALLBACK_PROCEDURES,
@@ -480,21 +782,132 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
     return () => controller.abort()
   }, [apiBaseUrl, session.token])
 
+  useEffect(() => {
+    if (calendarDateTouched || data.appointments.length === 0) {
+      return
+    }
+
+    setCalendarDate(getInitialCalendarDate(data.appointments))
+  }, [calendarDateTouched, data.appointments])
+
+  useEffect(() => {
+    if (!currentDoctor?.id) {
+      return undefined
+    }
+
+    const controller = new AbortController()
+
+    async function loadCalendarItems() {
+      setCalendarLoading(true)
+
+      try {
+        const calendarItems = await fetchCalendarWithAuth(
+          apiBaseUrl,
+          session.token,
+          currentDoctor.id,
+          calendarRange.start,
+          calendarRange.end,
+          controller.signal,
+        )
+
+        setData((currentData) => ({
+          ...currentData,
+          calendarItems,
+        }))
+        setCalendarFeedback(null)
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          setData((currentData) => ({
+            ...currentData,
+            calendarItems: buildFallbackCalendarItems(),
+          }))
+          setCalendarFeedback({
+            type: 'error',
+            message: 'Mostrando agenda de referencia mientras se sincroniza el calendario.',
+          })
+        }
+      } finally {
+        setCalendarLoading(false)
+      }
+    }
+
+    loadCalendarItems()
+
+    return () => controller.abort()
+  }, [
+    apiBaseUrl,
+    calendarRange.end,
+    calendarRange.start,
+    currentDoctor?.id,
+    session.token,
+  ])
+
+  useEffect(() => {
+    if (!currentDoctor?.id) {
+      return undefined
+    }
+
+    const controller = new AbortController()
+    const todayStart = startOfDay(new Date())
+    const windowEnd = endOfDay(addDays(todayStart, 30))
+
+    async function loadDashboardCalendarItems() {
+      try {
+        const dashboardCalendarItems = await fetchCalendarWithAuth(
+          apiBaseUrl,
+          session.token,
+          currentDoctor.id,
+          todayStart,
+          windowEnd,
+          controller.signal,
+        )
+
+        setData((currentData) => ({
+          ...currentData,
+          dashboardCalendarItems,
+        }))
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          setData((currentData) => ({
+            ...currentData,
+            dashboardCalendarItems: buildFallbackCalendarItems(),
+          }))
+        }
+      }
+    }
+
+    loadDashboardCalendarItems()
+
+    return () => controller.abort()
+  }, [apiBaseUrl, currentDoctor?.id, session.token])
+
   const metrics = useMemo(() => {
     const now = new Date()
     const activeAppointments = data.appointments.filter(
       (appointment) => appointment.estado !== 'CANCELADA',
     )
-    const appointmentsToday = activeAppointments.filter((appointment) => {
-      const date = parseDate(appointment.fechaHora)
+    const activeCalendarItems = data.dashboardCalendarItems.filter(
+      (item) => item.estado !== 'CANCELADA',
+    )
+    const agendaTodayItems = activeCalendarItems.filter((item) => {
+      const date = parseDate(item.inicio)
       return date ? isSameDay(date, now) : false
-    }).length
+    })
     const upcomingAppointments = activeAppointments
       .filter((appointment) => {
         const date = parseDate(appointment.fechaHora)
         return date ? date >= now : false
       })
       .sort((first, second) => parseDate(first.fechaHora) - parseDate(second.fechaHora))
+    const upcomingAgendaItems = activeCalendarItems
+      .filter((item) => {
+        const date = parseDate(item.inicio)
+        return date ? date >= now : false
+      })
+      .sort((first, second) => parseDate(first.inicio) - parseDate(second.inicio))
+    const calendarEventReminders = upcomingAgendaItems
+      .filter((item) => item.tipo === 'EVENTO')
+      .slice(0, 3)
     const completedAppointments = data.appointments.filter(
       (appointment) => appointment.estado === 'COMPLETADA',
     ).length
@@ -503,8 +916,11 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
 
     return {
       activeAppointments,
-      appointmentsToday,
+      agendaTodayItems,
+      appointmentsToday: agendaTodayItems.length,
+      calendarEventReminders,
       completedAppointments,
+      upcomingAgendaItems,
       upcomingAppointments,
       availability,
       scheduleLoad,
@@ -577,22 +993,17 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
   )
   const chart = useMemo(() => buildChartPath(weeklyData), [weeklyData])
   const greetingName = getGreetingName(session)
-  const currentDoctor =
-    data.doctors.find((doctor) => doctor.email === session.email) ?? data.doctors[0]
   const doctorLabel = currentDoctor?.nombreCompleto ?? greetingName
   const specialtyLabel = currentDoctor?.especialidad ?? session.rol
   const todayLabel = formatDateLabel(new Date())
 
-  function handleQuickAction(message) {
-    setQuickMessage(message)
-  }
-
   function handleNavClick(itemId) {
-    if (itemId === 'dashboard' || itemId === 'pacientes' || itemId === 'citas') {
+    if (itemId === 'dashboard' || itemId === 'pacientes' || itemId === 'citas' || itemId === 'calendario') {
       setActiveNav(itemId)
       setQuickMessage(null)
       setPatientFeedback(null)
       setAppointmentFeedback(null)
+      setCalendarFeedback(null)
       return
     }
 
@@ -615,6 +1026,40 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
     setAppointmentForm(getEmptyAppointmentForm(currentDoctor?.id ? String(currentDoctor.id) : ''))
     setAppointmentFormOpen(true)
     setActiveNav('citas')
+  }
+
+  function openNewCalendarEventForm() {
+    setCalendarFeedback(null)
+    setCalendarEventForm(getEmptyCalendarEventForm(calendarDate))
+    setCalendarEventFormOpen(true)
+    setActiveNav('calendario')
+  }
+
+  function closeCalendarEventForm() {
+    setCalendarEventFormOpen(false)
+    setCalendarEventForm(getEmptyCalendarEventForm(calendarDate))
+  }
+
+  function updateCalendarEventForm(field, value) {
+    setCalendarEventForm((currentForm) => ({
+      ...currentForm,
+      [field]: value,
+    }))
+  }
+
+  function moveCalendar(direction) {
+    const step = calendarView === 'day' ? 1 : calendarView === 'month' ? 30 : 7
+    setCalendarDateTouched(true)
+    setCalendarDate((currentDate) => addDays(currentDate, direction * step))
+  }
+
+  function goToTodayCalendar() {
+    setCalendarDateTouched(true)
+    setCalendarDate(new Date())
+  }
+
+  function changeCalendarView(view) {
+    setCalendarView(view)
   }
 
   function openEditAppointmentForm(appointment) {
@@ -680,6 +1125,35 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
     }))
   }
 
+  async function refreshCalendarItems() {
+    if (!currentDoctor?.id) {
+      return
+    }
+
+    const [calendarItems, dashboardCalendarItems] = await Promise.all([
+      fetchCalendarWithAuth(
+        apiBaseUrl,
+        session.token,
+        currentDoctor.id,
+        calendarRange.start,
+        calendarRange.end,
+      ),
+      fetchCalendarWithAuth(
+        apiBaseUrl,
+        session.token,
+        currentDoctor.id,
+        startOfDay(new Date()),
+        endOfDay(addDays(new Date(), 30)),
+      ),
+    ])
+
+    setData((currentData) => ({
+      ...currentData,
+      calendarItems,
+      dashboardCalendarItems,
+    }))
+  }
+
   async function handleAppointmentSubmit(event) {
     event.preventDefault()
     setSavingAppointment(true)
@@ -700,6 +1174,7 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
         body: JSON.stringify(payload),
       })
       await refreshAppointments()
+      await refreshCalendarItems()
       setAppointmentFeedback({
         type: 'success',
         message: editingAppointment ? 'Cita actualizada correctamente.' : 'Cita creada correctamente.',
@@ -732,6 +1207,7 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
         method: 'PATCH',
       })
       await refreshAppointments()
+      await refreshCalendarItems()
       setAppointmentFeedback({
         type: 'success',
         message: 'Cita cancelada correctamente.',
@@ -744,6 +1220,37 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
             ? error.message
             : 'No fue posible cancelar la cita.',
       })
+    }
+  }
+
+  async function handleCalendarEventSubmit(event) {
+    event.preventDefault()
+    setSavingCalendarEvent(true)
+    setCalendarFeedback(null)
+
+    try {
+      const payload = buildCalendarEventPayload(calendarEventForm, currentDoctor?.id ?? '')
+
+      await requestWithAuth(apiBaseUrl, session.token, '/calendario/eventos', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      await refreshCalendarItems()
+      setCalendarFeedback({
+        type: 'success',
+        message: 'Evento agregado al calendario correctamente.',
+      })
+      closeCalendarEventForm()
+    } catch (error) {
+      setCalendarFeedback({
+        type: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'No fue posible crear el evento.',
+      })
+    } finally {
+      setSavingCalendarEvent(false)
     }
   }
 
@@ -860,7 +1367,7 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
             icon={ClockIcon}
             label="Citas hoy"
             tone="blue"
-            trend={`${metrics.upcomingAppointments.length} próximas`}
+            trend={`${metrics.upcomingAgendaItems.length} próximos en agenda`}
             value={metrics.appointmentsToday}
           />
           <MetricCard
@@ -917,7 +1424,7 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleQuickAction('La agenda completa se conectará desde el módulo Calendario.')}
+                  onClick={() => setActiveNav('calendario')}
                 >
                   Ver todas
                 </button>
@@ -956,13 +1463,20 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
             <section className="reminders-panel">
               <div className="section-heading">
                 <h2>Recordatorios</h2>
-                <p>Seguimientos sugeridos para la jornada.</p>
+                <p>Eventos relevantes guardados en el calendario.</p>
               </div>
-              <ul>
-                <li>Confirmar asistencia de pacientes con cita programada.</li>
-                <li>Revisar historias clínicas pendientes antes del cierre.</li>
-                <li>Validar disponibilidad del consultorio para la tarde.</li>
-              </ul>
+              {metrics.calendarEventReminders.length > 0 ? (
+                <ul>
+                  {metrics.calendarEventReminders.map((item) => (
+                    <li key={`${item.tipo}-${item.id}`}>
+                      <strong>{item.titulo}</strong>
+                      <span>{formatShortDate(item.inicio)} · {formatCalendarItemRange(item)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="empty-calendar-reminder">No hay nada relevante en el calendario.</p>
+              )}
             </section>
 
             <section className="office-panel">
@@ -979,7 +1493,7 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
               </div>
               <button
                 type="button"
-                onClick={() => handleQuickAction('Calendario marcado como siguiente vista prioritaria.')}
+                onClick={() => setActiveNav('calendario')}
               >
                 Ver calendario completo
                 <CalendarIcon />
@@ -1200,7 +1714,7 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
             <SearchIcon />
             <input
               type="search"
-              placeholder="Buscar paciente, médico o motivo de consulta..."
+              placeholder="Buscar paciente o motivo de consulta..."
               value={appointmentSearch}
               onChange={(event) => setAppointmentSearch(event.target.value)}
             />
@@ -1372,6 +1886,242 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
     )
   }
 
+  function renderCalendarContent() {
+    const calendarItems = data.calendarItems
+      .slice()
+      .sort((first, second) => parseDate(first.inicio) - parseDate(second.inicio))
+    const selectedDayItems = calendarItems.filter((item) => isCalendarItemOnDay(item, calendarDate))
+    const selectedDayActiveItems = selectedDayItems.filter((item) => item.estado !== 'CANCELADA')
+    const selectedDayCitas = selectedDayActiveItems.filter((item) => item.tipo === 'CITA')
+    const selectedDayEvents = selectedDayActiveItems.filter((item) => item.tipo === 'EVENTO')
+    const nextPatient = calendarItems.find((item) => {
+      const startDate = parseDate(item.inicio)
+      return item.tipo === 'CITA' && item.estado !== 'CANCELADA' && startDate && startDate >= new Date()
+    })
+    const nextEvent = calendarItems.find((item) => {
+      const startDate = parseDate(item.inicio)
+      return item.tipo === 'EVENTO' && startDate && startDate >= new Date()
+    })
+
+    return (
+      <>
+        <section className="calendar-workspace">
+          <div className="calendar-toolbar">
+            <div className="calendar-navigation" aria-label="Navegación de calendario">
+              <button type="button" className="icon-action" aria-label="Semana anterior" onClick={() => moveCalendar(-1)}>
+                ‹
+              </button>
+              <button type="button" className="icon-action" aria-label="Semana siguiente" onClick={() => moveCalendar(1)}>
+                ›
+              </button>
+              <button type="button" className="secondary-action is-compact" onClick={goToTodayCalendar}>
+                Hoy
+              </button>
+            </div>
+
+            <h2>{calendarTitle}</h2>
+
+            <div className="calendar-toolbar-actions">
+              <div className="calendar-view-toggle" aria-label="Vista del calendario">
+                {[
+                  ['day', 'Día'],
+                  ['week', 'Semana'],
+                  ['month', 'Mes'],
+                ].map(([view, label]) => (
+                  <button
+                    type="button"
+                    className={calendarView === view ? 'is-active' : ''}
+                    key={view}
+                    onClick={() => changeCalendarView(view)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="secondary-action" onClick={openNewCalendarEventForm}>
+                <CalendarIcon />
+                Nuevo evento
+              </button>
+              <button type="button" className="primary-action" onClick={openNewAppointmentForm}>
+                <PlusCircleIcon />
+                Nueva cita
+              </button>
+            </div>
+          </div>
+
+          {calendarFeedback ? (
+            <p className={`dashboard-notice ${calendarFeedback.type === 'success' ? 'is-action' : ''}`}>
+              {calendarFeedback.message}
+            </p>
+          ) : null}
+
+          {calendarEventFormOpen ? (
+            <section className="calendar-form-panel">
+              <CalendarEventForm
+                formValues={calendarEventForm}
+                onCancel={closeCalendarEventForm}
+                onChange={updateCalendarEventForm}
+                onSubmit={handleCalendarEventSubmit}
+                saving={savingCalendarEvent}
+              />
+            </section>
+          ) : null}
+
+          <div className="calendar-layout">
+            <section className="calendar-board-panel" aria-label="Calendario del médico">
+              {calendarLoading ? <p className="calendar-loading">Sincronizando calendario...</p> : null}
+
+              {calendarView === 'month' ? (
+                <div className="calendar-month-grid">
+                  {MONTH_WEEK_LABELS.map((label) => (
+                    <span className="calendar-month-header" key={label}>{label}</span>
+                  ))}
+                  {monthCalendarDays.map((day) => {
+                    const dayItems = calendarItems.filter((item) => isCalendarItemOnDay(item, day))
+                    const isOutsideMonth = day.getMonth() !== calendarDate.getMonth()
+
+                    return (
+                      <button
+                        type="button"
+                        className={`calendar-month-cell ${isOutsideMonth ? 'is-muted' : ''}`}
+                        key={day.toISOString()}
+                        onClick={() => {
+                          setCalendarDateTouched(true)
+                          setCalendarDate(day)
+                          setCalendarView('day')
+                        }}
+                      >
+                        <strong>{day.getDate()}</strong>
+                        <span>
+                          {dayItems.slice(0, 3).map((item) => (
+                            <em className={getCalendarItemClass(item)} key={`${item.tipo}-${item.id}`}>
+                              {item.tipo === 'EVENTO' ? item.titulo : item.pacienteNombre}
+                            </em>
+                          ))}
+                          {dayItems.length > 3 ? <small>+{dayItems.length - 3} más</small> : null}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div
+                  className="calendar-grid"
+                  style={{ '--calendar-days': calendarDays.length }}
+                >
+                  <div className="calendar-corner">
+                    <ClockIcon />
+                  </div>
+                  {calendarDays.map((day) => (
+                    <div className="calendar-day-heading" key={day.toISOString()}>
+                      <span>{formatWeekdayLabel(day)}</span>
+                      <strong className={isSameDay(day, new Date()) ? 'is-today' : ''}>
+                        {day.getDate()}
+                      </strong>
+                    </div>
+                  ))}
+
+                  {CALENDAR_HOURS.map((hour) => (
+                    <div className="calendar-row-fragment" key={hour}>
+                      <div className="calendar-hour-label">{String(hour).padStart(2, '0')}:00</div>
+                      {calendarDays.map((day) => {
+                        const slotItems = getCalendarSlotItems(calendarItems, day, hour)
+
+                        return (
+                          <div className="calendar-slot" key={`${day.toISOString()}-${hour}`}>
+                            {slotItems.map((item) => (
+                              <article
+                                className={`calendar-item ${getCalendarItemClass(item)}`}
+                                key={`${item.tipo}-${item.id}`}
+                              >
+                                <span>{formatCalendarItemRange(item)}</span>
+                                <strong>{item.tipo === 'EVENTO' ? item.titulo : item.pacienteNombre}</strong>
+                                <small>
+                                  {item.tipo === 'EVENTO'
+                                    ? item.descripcion || 'Evento del calendario'
+                                    : item.procedimientoNombre}
+                                </small>
+                              </article>
+                            ))}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <aside className="calendar-side-panel" aria-label="Resumen del calendario">
+              <section>
+                <div className="section-heading">
+                  <h2>Resumen del día</h2>
+                  <p>{formatShortDate(calendarDate)}</p>
+                </div>
+                <dl className="calendar-summary-list">
+                  <div>
+                    <dt>Agenda total</dt>
+                    <dd>{selectedDayActiveItems.length}</dd>
+                  </div>
+                  <div>
+                    <dt>Citas</dt>
+                    <dd>{selectedDayCitas.length}</dd>
+                  </div>
+                  <div>
+                    <dt>Eventos</dt>
+                    <dd>{selectedDayEvents.length}</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section>
+                <div className="section-heading">
+                  <h2>Próximo paciente</h2>
+                </div>
+                {nextPatient ? (
+                  <article className="calendar-next-card">
+                    <span>{getInitials(nextPatient.pacienteNombre)}</span>
+                    <div>
+                      <strong>{nextPatient.pacienteNombre}</strong>
+                      <small>{formatTime(nextPatient.inicio)} · {nextPatient.procedimientoNombre}</small>
+                    </div>
+                  </article>
+                ) : (
+                  <p className="calendar-empty-copy">No hay pacientes próximos en esta vista.</p>
+                )}
+              </section>
+
+              <section>
+                <div className="section-heading">
+                  <h2>Próximo evento</h2>
+                </div>
+                {nextEvent ? (
+                  <article className="calendar-next-card is-event">
+                    <span><CalendarIcon /></span>
+                    <div>
+                      <strong>{nextEvent.titulo}</strong>
+                      <small>{formatShortDate(nextEvent.inicio)} · {formatTime(nextEvent.inicio)}</small>
+                    </div>
+                  </article>
+                ) : (
+                  <p className="calendar-empty-copy">No hay eventos próximos guardados.</p>
+                )}
+              </section>
+
+              <section className="calendar-legend">
+                <h2>Leyenda</h2>
+                <span><i className="is-scheduled" /> Cita programada</span>
+                <span><i className="is-completed" /> Cita completada</span>
+                <span><i className="is-event" /> Evento</span>
+                <span><i className="is-cancelled" /> Cancelada</span>
+              </section>
+            </aside>
+          </div>
+        </section>
+      </>
+    )
+  }
+
   return (
     <main className="dashboard-shell">
       <aside className="dashboard-sidebar" aria-label="Navegación principal">
@@ -1433,7 +2183,9 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
             ? renderPatientsContent()
             : activeNav === 'citas'
               ? renderAppointmentsContent()
-              : renderDashboardContent()}
+              : activeNav === 'calendario'
+                ? renderCalendarContent()
+                : renderDashboardContent()}
         </div>
 
         <footer className="dashboard-footer">
@@ -1623,6 +2375,71 @@ function AppointmentForm({
         </button>
         <button type="submit" className="primary-action" disabled={saving}>
           {saving ? 'Guardando...' : editingAppointment ? 'Guardar cambios' : 'Crear cita'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function CalendarEventForm({ formValues, onCancel, onChange, onSubmit, saving }) {
+  return (
+    <form className="patient-form calendar-event-form" onSubmit={onSubmit}>
+      <div className="section-heading is-row">
+        <div>
+          <h2>Nuevo evento</h2>
+          <p>Reserve un bloque visible en el calendario del médico.</p>
+        </div>
+        <button type="button" className="text-action" onClick={onCancel}>
+          Cancelar
+        </button>
+      </div>
+
+      <div className="patient-form-grid">
+        <label>
+          <span>Título</span>
+          <input
+            type="text"
+            value={formValues.titulo}
+            onChange={(event) => onChange('titulo', event.target.value)}
+            maxLength="150"
+            required
+          />
+        </label>
+        <label>
+          <span>Inicio</span>
+          <input
+            type="datetime-local"
+            value={formValues.inicio}
+            onChange={(event) => onChange('inicio', event.target.value)}
+            required
+          />
+        </label>
+        <label>
+          <span>Fin</span>
+          <input
+            type="datetime-local"
+            value={formValues.fin}
+            onChange={(event) => onChange('fin', event.target.value)}
+            required
+          />
+        </label>
+        <label className="is-wide">
+          <span>Descripción</span>
+          <textarea
+            value={formValues.descripcion}
+            onChange={(event) => onChange('descripcion', event.target.value)}
+            maxLength="5000"
+            rows="3"
+          />
+        </label>
+      </div>
+
+      <div className="patient-form-actions">
+        <button type="button" className="secondary-action" onClick={onCancel}>
+          Cancelar
+        </button>
+        <button type="submit" className="primary-action" disabled={saving}>
+          {saving ? 'Guardando...' : 'Agregar evento'}
         </button>
       </div>
     </form>
