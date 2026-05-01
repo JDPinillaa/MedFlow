@@ -21,11 +21,25 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
   padding: 0 24px;
   border-bottom: 1px solid #e4ebf3;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
   color: #148ff2;
+  background: transparent;
+  font: inherit;
   font-size: 1.16rem;
   font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.dashboard-brand:hover {
+  background: #f6fbff;
+  color: #0b8bff;
 }
 
 .dashboard-brand img {
@@ -148,6 +162,12 @@
   border-color: #cfe0f4;
   background: #f6fbff;
   color: #0b8bff;
+}
+
+.dashboard-actions .theme-toggle[aria-pressed="true"] {
+  border-color: #33526f;
+  background: #172336;
+  color: #7ec8ff;
 }
 
 .dashboard-actions svg {
@@ -2316,6 +2336,357 @@
   border-top: 1px solid #dfe6ef;
   color: #4d596d;
   font-size: 0.82rem;
+}
+
+.dashboard-shell.is-dark {
+  color-scheme: dark;
+  background: #0f1724;
+  color: #e6edf7;
+}
+
+.dashboard-shell.is-dark .dashboard-sidebar {
+  border-right-color: #263449;
+  background: #111a29;
+}
+
+.dashboard-shell.is-dark .dashboard-brand {
+  border-bottom-color: #263449;
+  color: #69b8ff;
+}
+
+.dashboard-shell.is-dark .dashboard-brand:hover,
+.dashboard-shell.is-dark .dashboard-nav button:hover,
+.dashboard-shell.is-dark .dashboard-logout:hover,
+.dashboard-shell.is-dark .dashboard-actions button:hover,
+.dashboard-shell.is-dark .patient-actions button:hover,
+.dashboard-shell.is-dark .icon-action:hover,
+.dashboard-shell.is-dark .clinical-record-details[open] summary {
+  border-color: #31506c;
+  background: #17263a;
+  color: #7ec8ff;
+}
+
+.dashboard-shell.is-dark .dashboard-nav button,
+.dashboard-shell.is-dark .dashboard-logout,
+.dashboard-shell.is-dark .dashboard-footer,
+.dashboard-shell.is-dark .appointment-row p,
+.dashboard-shell.is-dark .appointment-time,
+.dashboard-shell.is-dark .chart-labels,
+.dashboard-shell.is-dark .reminders-panel li,
+.dashboard-shell.is-dark .office-panel dd,
+.dashboard-shell.is-dark .patient-table-status,
+.dashboard-shell.is-dark .patient-cell small,
+.dashboard-shell.is-dark .patient-profile p,
+.dashboard-shell.is-dark .patient-detail-list dt,
+.dashboard-shell.is-dark .patient-history small,
+.dashboard-shell.is-dark .patient-guidance p,
+.dashboard-shell.is-dark .clinical-profile-heading p,
+.dashboard-shell.is-dark .clinical-profile-list dt,
+.dashboard-shell.is-dark .clinical-alert-card p,
+.dashboard-shell.is-dark .clinical-summary-card p,
+.dashboard-shell.is-dark .clinical-timeline-heading p,
+.dashboard-shell.is-dark .clinical-record-meta > span:first-child,
+.dashboard-shell.is-dark .clinical-record-card p,
+.dashboard-shell.is-dark .clinical-record-footer small,
+.dashboard-shell.is-dark .clinical-record-details dt,
+.dashboard-shell.is-dark .clinical-loading-state,
+.dashboard-shell.is-dark .clinical-empty-state,
+.dashboard-shell.is-dark .clinical-empty-state p,
+.dashboard-shell.is-dark .appointment-summary-card p,
+.dashboard-shell.is-dark .calendar-summary-list dt,
+.dashboard-shell.is-dark .calendar-next-card small,
+.dashboard-shell.is-dark .calendar-empty-copy,
+.dashboard-shell.is-dark .calendar-month-cell small,
+.dashboard-shell.is-dark .calendar-item span,
+.dashboard-shell.is-dark .calendar-item small,
+.dashboard-shell.is-dark .empty-state,
+.dashboard-shell.is-dark .empty-calendar-reminder,
+.dashboard-shell.is-dark .reminders-panel li span,
+.dashboard-shell.is-dark .office-meter {
+  color: #9aa8bb;
+}
+
+.dashboard-shell.is-dark .dashboard-nav button.is-active {
+  background: #123452;
+  color: #7ec8ff;
+}
+
+.dashboard-shell.is-dark .dashboard-topbar {
+  border-bottom-color: #263449;
+  background: rgba(17, 26, 41, 0.92);
+}
+
+.dashboard-shell.is-dark .dashboard-eyebrow,
+.dashboard-shell.is-dark .dashboard-topbar h1,
+.dashboard-shell.is-dark .profile-copy small,
+.dashboard-shell.is-dark .dashboard-intro p,
+.dashboard-shell.is-dark .section-heading p,
+.dashboard-shell.is-dark .metric-copy small,
+.dashboard-shell.is-dark .metric-copy em,
+.dashboard-shell.is-dark .appointment-row small,
+.dashboard-shell.is-dark .chart-panel p,
+.dashboard-shell.is-dark .reminder-time,
+.dashboard-shell.is-dark .appointment-field span,
+.dashboard-shell.is-dark .patients-table th,
+.dashboard-shell.is-dark .appointments-table th,
+.dashboard-shell.is-dark .calendar-day-heading span,
+.dashboard-shell.is-dark .calendar-hour-label,
+.dashboard-shell.is-dark .calendar-corner,
+.dashboard-shell.is-dark .calendar-month-header,
+.dashboard-shell.is-dark .calendar-legend h2 {
+  color: #aab6c8;
+}
+
+.dashboard-shell.is-dark .dashboard-actions button,
+.dashboard-shell.is-dark .profile-copy strong,
+.dashboard-shell.is-dark .dashboard-intro h2,
+.dashboard-shell.is-dark .section-heading h2,
+.dashboard-shell.is-dark .metric-copy strong,
+.dashboard-shell.is-dark .quick-action strong,
+.dashboard-shell.is-dark .appointment-row strong,
+.dashboard-shell.is-dark .appointments-panel h3,
+.dashboard-shell.is-dark .office-panel dt,
+.dashboard-shell.is-dark .patient-cell strong,
+.dashboard-shell.is-dark .patient-form-grid span,
+.dashboard-shell.is-dark .patient-profile h3,
+.dashboard-shell.is-dark .patient-detail-list dd,
+.dashboard-shell.is-dark .patient-history h3,
+.dashboard-shell.is-dark .patient-history strong,
+.dashboard-shell.is-dark .clinical-back-button,
+.dashboard-shell.is-dark .clinical-profile-heading h3,
+.dashboard-shell.is-dark .clinical-profile-list dd,
+.dashboard-shell.is-dark .clinical-alert-card strong,
+.dashboard-shell.is-dark .clinical-summary-card span,
+.dashboard-shell.is-dark .clinical-timeline-heading h3,
+.dashboard-shell.is-dark .clinical-record-card h4,
+.dashboard-shell.is-dark .clinical-record-footer strong,
+.dashboard-shell.is-dark .clinical-record-details summary,
+.dashboard-shell.is-dark .clinical-record-details dd,
+.dashboard-shell.is-dark .clinical-empty-state h3,
+.dashboard-shell.is-dark .appointment-summary-card h3,
+.dashboard-shell.is-dark .calendar-toolbar h2,
+.dashboard-shell.is-dark .calendar-day-heading strong,
+.dashboard-shell.is-dark .calendar-month-cell,
+.dashboard-shell.is-dark .calendar-summary-list dd,
+.dashboard-shell.is-dark .calendar-next-card strong,
+.dashboard-shell.is-dark .calendar-legend span,
+.dashboard-shell.is-dark .appointment-patient strong,
+.dashboard-shell.is-dark .reminders-panel li strong,
+.dashboard-shell.is-dark .office-meter strong,
+.dashboard-shell.is-dark .secondary-action,
+.dashboard-shell.is-dark .office-panel button {
+  color: #e6edf7;
+}
+
+.dashboard-shell.is-dark .profile-chip {
+  border-left-color: #263449;
+}
+
+.dashboard-shell.is-dark .profile-avatar,
+.dashboard-shell.is-dark .patient-avatar,
+.dashboard-shell.is-dark .patient-profile-avatar,
+.dashboard-shell.is-dark .clinical-profile-avatar,
+.dashboard-shell.is-dark .clinical-doctor-avatar,
+.dashboard-shell.is-dark .calendar-next-card > span {
+  background: #173452;
+  color: #7ec8ff;
+}
+
+.dashboard-shell.is-dark .metric-card,
+.dashboard-shell.is-dark .appointments-panel,
+.dashboard-shell.is-dark .chart-panel,
+.dashboard-shell.is-dark .reminders-panel,
+.dashboard-shell.is-dark .office-panel,
+.dashboard-shell.is-dark .patients-panel,
+.dashboard-shell.is-dark .patient-detail-panel,
+.dashboard-shell.is-dark .patient-guidance,
+.dashboard-shell.is-dark .clinical-profile-panel,
+.dashboard-shell.is-dark .clinical-timeline-panel,
+.dashboard-shell.is-dark .appointments-filter-panel,
+.dashboard-shell.is-dark .appointments-manager,
+.dashboard-shell.is-dark .appointment-detail-panel,
+.dashboard-shell.is-dark .appointment-summary-card,
+.dashboard-shell.is-dark .calendar-toolbar,
+.dashboard-shell.is-dark .calendar-board-panel,
+.dashboard-shell.is-dark .calendar-side-panel,
+.dashboard-shell.is-dark .calendar-form-panel,
+.dashboard-shell.is-dark .clinical-record-card,
+.dashboard-shell.is-dark .clinical-record-details dl,
+.dashboard-shell.is-dark .reminders-panel li,
+.dashboard-shell.is-dark .empty-calendar-reminder {
+  border-color: #263449;
+  background: #141f30;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22);
+}
+
+.dashboard-shell.is-dark .patients-panel-toolbar,
+.dashboard-shell.is-dark .patient-search,
+.dashboard-shell.is-dark .patient-form-grid input,
+.dashboard-shell.is-dark .patient-form-grid select,
+.dashboard-shell.is-dark .patient-form-grid textarea,
+.dashboard-shell.is-dark .appointment-field input,
+.dashboard-shell.is-dark .appointment-field select,
+.dashboard-shell.is-dark .clinical-back-button,
+.dashboard-shell.is-dark .clinical-record-node,
+.dashboard-shell.is-dark .clinical-record-details summary,
+.dashboard-shell.is-dark .icon-action,
+.dashboard-shell.is-dark .calendar-day-heading,
+.dashboard-shell.is-dark .calendar-slot,
+.dashboard-shell.is-dark .calendar-month-cell,
+.dashboard-shell.is-dark .calendar-view-toggle button.is-active,
+.dashboard-shell.is-dark .secondary-action,
+.dashboard-shell.is-dark .office-panel button {
+  border-color: #2b3a50;
+  background: #111a29;
+  color: #e6edf7;
+}
+
+.dashboard-shell.is-dark .patient-search input {
+  color: #e6edf7;
+}
+
+.dashboard-shell.is-dark .patients-table th,
+.dashboard-shell.is-dark .appointments-table th,
+.dashboard-shell.is-dark .calendar-corner,
+.dashboard-shell.is-dark .calendar-hour-label,
+.dashboard-shell.is-dark .calendar-month-header,
+.dashboard-shell.is-dark .calendar-view-toggle,
+.dashboard-shell.is-dark .clinical-filter-pills span,
+.dashboard-shell.is-dark .count-pill {
+  background: #0f1724;
+}
+
+.dashboard-shell.is-dark .patients-table th,
+.dashboard-shell.is-dark .patients-table td,
+.dashboard-shell.is-dark .appointments-table th,
+.dashboard-shell.is-dark .appointments-table td,
+.dashboard-shell.is-dark .appointment-list,
+.dashboard-shell.is-dark .appointment-row,
+.dashboard-shell.is-dark .patient-history article,
+.dashboard-shell.is-dark .clinical-timeline-heading,
+.dashboard-shell.is-dark .clinical-record-footer,
+.dashboard-shell.is-dark .calendar-loading,
+.dashboard-shell.is-dark .calendar-corner,
+.dashboard-shell.is-dark .calendar-day-heading,
+.dashboard-shell.is-dark .calendar-hour-label,
+.dashboard-shell.is-dark .calendar-slot,
+.dashboard-shell.is-dark .calendar-month-header,
+.dashboard-shell.is-dark .calendar-month-cell,
+.dashboard-shell.is-dark .dashboard-footer {
+  border-color: #263449;
+}
+
+.dashboard-shell.is-dark .quick-action.is-patient,
+.dashboard-shell.is-dark .calendar-item {
+  background: #102a44;
+}
+
+.dashboard-shell.is-dark .quick-action.is-appointment,
+.dashboard-shell.is-dark .calendar-item.is-completed,
+.dashboard-shell.is-dark .patient-state.is-active,
+.dashboard-shell.is-dark .sync-pill {
+  background: #102f25;
+  color: #71dfa2;
+}
+
+.dashboard-shell.is-dark .quick-action small {
+  color: #aab6c8;
+}
+
+.dashboard-shell.is-dark .dashboard-notice,
+.dashboard-shell.is-dark .calendar-loading,
+.dashboard-shell.is-dark .patient-guidance,
+.dashboard-shell.is-dark .clinical-record-form {
+  border-color: #244d73;
+  background: #102a44;
+  color: #a9d8ff;
+}
+
+.dashboard-shell.is-dark .dashboard-notice.is-action {
+  border-color: #1d5a3c;
+  background: #102f25;
+  color: #8de7b2;
+}
+
+.dashboard-shell.is-dark .sync-pill.is-loading {
+  background: #102a44;
+  color: #7ec8ff;
+}
+
+.dashboard-shell.is-dark .patient-profile,
+.dashboard-shell.is-dark .patient-detail-list div,
+.dashboard-shell.is-dark .clinical-profile-list div,
+.dashboard-shell.is-dark .calendar-summary-list div,
+.dashboard-shell.is-dark .calendar-next-card {
+  border-color: #263449;
+  background: #111a29;
+}
+
+.dashboard-shell.is-dark .clinical-profile-cover {
+  background: linear-gradient(135deg, #143857, #153327);
+}
+
+.dashboard-shell.is-dark .clinical-alert-card {
+  border-color: #5a2a2a;
+  background: #2a1718;
+}
+
+.dashboard-shell.is-dark .clinical-alert-card > span {
+  background: #401f20;
+}
+
+.dashboard-shell.is-dark .clinical-summary-card {
+  background: #102a44;
+  color: #c8e5ff;
+}
+
+.dashboard-shell.is-dark .clinical-summary-card strong,
+.dashboard-shell.is-dark .clinical-summary-card p {
+  color: #c8e5ff;
+}
+
+.dashboard-shell.is-dark .clinical-filter-pills span:first-child {
+  background: #162b43;
+  color: #7ec8ff;
+}
+
+.dashboard-shell.is-dark .clinical-timeline::before {
+  background: #263449;
+}
+
+.dashboard-shell.is-dark .clinical-record-meta > strong,
+.dashboard-shell.is-dark .patient-state,
+.dashboard-shell.is-dark .count-pill,
+.dashboard-shell.is-dark .status-badge.is-pending {
+  border-color: #2b3a50;
+  background: #17263a;
+  color: #b9c5d8;
+}
+
+.dashboard-shell.is-dark .calendar-slot:hover,
+.dashboard-shell.is-dark .calendar-month-cell:hover {
+  background: #17263a;
+}
+
+.dashboard-shell.is-dark .calendar-month-cell.is-muted {
+  background: #101827;
+  color: #66758b;
+}
+
+.dashboard-shell.is-dark .calendar-item strong,
+.dashboard-shell.is-dark .calendar-item small {
+  color: #d9e9ff;
+}
+
+.dashboard-shell.is-dark .calendar-item.is-cancelled,
+.dashboard-shell.is-dark .calendar-month-cell em.is-cancelled {
+  background: #321d20;
+}
+
+.dashboard-shell.is-dark .calendar-item.is-event,
+.dashboard-shell.is-dark .calendar-month-cell em.is-event,
+.dashboard-shell.is-dark .calendar-next-card.is-event > span {
+  background: #231f3d;
 }
 
 @media (max-width: 1180px) {

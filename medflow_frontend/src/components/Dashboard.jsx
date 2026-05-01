@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import './Dashboard.css'
 import logoDashboard from '../assets/logoDashboard.png'
 
+const THEME_STORAGE_KEY = 'medflow-theme'
+
 const FALLBACK_APPOINTMENTS = [
   {
     id: 'fallback-1',
@@ -945,6 +947,13 @@ function buildCalendarEventPayload(formValues, doctorId) {
 
 function Dashboard({ apiBaseUrl, onLogout, session }) {
   const [activeNav, setActiveNav] = useState('dashboard')
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === 'undefined') {
+      return 'light'
+    }
+
+    return window.localStorage.getItem(THEME_STORAGE_KEY) === 'dark' ? 'dark' : 'light'
+  })
   const [data, setData] = useState({
     appointments: [],
     calendarItems: [],
@@ -1321,6 +1330,20 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
   const doctorLabel = currentDoctor?.nombreCompleto ?? greetingName
   const specialtyLabel = currentDoctor?.especialidad ?? session.rol
   const todayLabel = formatDateLabel(new Date())
+  const isDarkMode = theme === 'dark'
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+    document.documentElement.dataset.theme = theme
+  }, [theme])
+
+  function toggleTheme() {
+    setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))
+  }
 
   function handleNavClick(itemId) {
     if (itemId === 'dashboard' || itemId === 'pacientes' || itemId === 'citas' || itemId === 'calendario') {
@@ -2723,12 +2746,17 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
   }
 
   return (
-    <main className="dashboard-shell">
+    <main className={`dashboard-shell${isDarkMode ? ' is-dark' : ''}`}>
       <aside className="dashboard-sidebar" aria-label="Navegación principal">
-        <div className="dashboard-brand">
+        <button
+          type="button"
+          className="dashboard-brand"
+          onClick={() => handleNavClick('dashboard')}
+          aria-label="Ir al dashboard principal"
+        >
           <img src={logoDashboard} alt="" />
           <span>MedFlow</span>
-        </div>
+        </button>
 
         <nav className="dashboard-nav">
           {NAV_ITEMS.map((item) => {
@@ -2765,8 +2793,14 @@ function Dashboard({ apiBaseUrl, onLogout, session }) {
             <button type="button" aria-label="Notificaciones">
               <BellIcon />
             </button>
-            <button type="button" aria-label="Configuración">
-              <SettingsIcon />
+            <button
+              type="button"
+              className="theme-toggle"
+              aria-label={isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+              aria-pressed={isDarkMode}
+              onClick={toggleTheme}
+            >
+              {isDarkMode ? <MoonIcon /> : <SunIcon />}
             </button>
             <div className="profile-chip">
               <span className="profile-copy">
@@ -3403,11 +3437,19 @@ function PlusCircleIcon() {
   )
 }
 
-function SettingsIcon() {
+function SunIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" strokeWidth="1.7" />
       <path d="M12 3.8v2.1m0 12.2v2.1m5.8-14-1.5 1.5M7.7 16.3l-1.5 1.5m14-5.8h-2.1M5.9 12H3.8m14 5.8-1.5-1.5M7.7 7.7 6.2 6.2" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M19 15.1A7.5 7.5 0 0 1 8.9 5a7.6 7.6 0 1 0 10.1 10.1Z" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
     </svg>
   )
 }
